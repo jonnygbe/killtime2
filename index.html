@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; frame-src https://www.youtube.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.googleapis.com;">
+    <title>Killtime</title>
+    <style>
+        :root {
+            --primary-color: #1DB954;
+            --bg-color: #121212;
+            --text-color: #FFFFFF;
+            --secondary-bg: #282828;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 90%;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, var(--primary-color), #4CAF50);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .container {
+                padding: 20px 10px;
+                width: 95%;
+            }
+        }
+
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 2001;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.5s linear;
+            box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+        }
+
+        .dial-container {
+            margin: 50px auto;
+            position: relative;
+            width: 300px;
+            height: 300px;
+        }
+
+        @media (max-width: 768px) {
+            .dial-container {
+                width: 250px;
+                height: 250px;
+                margin: 30px auto;
+            }
+        }
+
+        .dial {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--secondary-bg);
+            box-shadow: 0 0 30px rgba(29, 185, 84, 0.2);
+            position: relative;
+            cursor: pointer;
+            border: 3px solid var(--primary-color);
+            touch-action: none;
+            overflow: hidden;
+        }
+
+        .dial-fill {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(29, 185, 84, 0.2);
+            transform-origin: center;
+            transition: all 0.3s ease;
+        }
+
+        .dial-needle {
+            position: absolute;
+            width: 4px;
+            height: 50%;
+            background: var(--primary-color);
+            top: 0;
+            left: 50%;
+            transform-origin: bottom center;
+            transform: translateX(-50%);
+            border-radius: 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .dial-needle::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 12px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(29, 185, 84, 0.5);
+        }
+
+        .dial-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: calc(min(2.5rem, 8vw));
+            font-weight: bold;
+            color: var(--primary-color);
+            pointer-events: none;
+            z-index: 10;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+            min-width: 80px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .dial-markers {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .dial-marker {
+            position: absolute;
+            width: 3px;
+            height: 15px;
+            background: var(--primary-color);
+            top: 0;
+            left: 50%;
+            margin-left: -1.5px;
+            transform-origin: bottom center;
+        }
+
+        .dial-marker-label {
+            position: absolute;
+            color: var(--primary-color);
+            font-size: 16px;
+            font-weight: bold;
+            white-space: nowrap;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+            transform-origin: center;
+            z-index: 6;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+        }
+
+        @media (max-width: 768px) {
+            .dial-container {
+                width: 250px;
+                height: 250px;
+                margin: 30px auto;
+            }
+
+            .dial-marker {
+                height: 8px;
+            }
+            
+            .dial-marker-label {
+                font-size: 11px;
+                width: 20px;
+                height: 20px;
+            }
+            
+            .dial-value {
+                font-size: calc(min(2rem, 7vw));
+                min-width: 70px;
+                padding: 8px;
+            }
+        }
+
+        .interest-input {
+            width: 80%;
+            padding: 15px;
+            margin: 20px 0;
+            border: 2px solid var(--primary-color);
+            border-radius: 12px;
+            font-size: 16px;
+            background: var(--secondary-bg);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .interest-input:focus {
+            outline: none;
+            box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
+        }
+
+        .submit-btn {
+            padding: 15px 40px;
+            background: var(--primary-color);
+            color: var(--bg-color);
+            border: none;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(29, 185, 84, 0.3);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(29, 185, 84, 0.4);
+        }
+
+        .submit-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .error-message {
+            color: #ff4444;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255, 68, 68, 0.1);
+            display: none;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--secondary-bg);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+        }
+
+        #videoPlayer {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .swipe-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            animation: pulse 2s infinite;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .swipe-indicator svg {
+            margin-left: 8px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        .next-btn {
+            position: absolute;
+            bottom: 70px;
+            right: 20px;
+            background: var(--primary-color);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 2001;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2001;
+        }
+
+        .api-key-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .api-key-form {
+            background: var(--secondary-bg);
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .api-key-input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+
+        .test-mode {
+            display: none;
+        }
+
+        .time-up-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: var(--primary-color);
+            padding: 2rem;
+            border-radius: 15px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            z-index: 2002;
+            display: none;
+            box-shadow: 0 0 30px rgba(29, 185, 84, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-container">
+        <div class="progress-bar"></div>
+    </div>
+
+    <div class="container">
+        <h1>Killtime</h1>
+        
+        <div class="dial-container">
+            <div class="dial">
+                <div class="dial-fill"></div>
+                <div class="dial-markers"></div>
+                <div class="dial-needle"></div>
+                <div class="dial-value">2:00</div>
+            </div>
+        </div>
+        
+        <label for="interest-input">What are you interested in watching?</label>
+        <input type="text" id="interest-input" name="interest" class="interest-input" placeholder="Enter your interests (e.g., dogs, cooking, science)" value="dogs">
+        <div class="error-message" role="alert"></div>
+        <button class="submit-btn" type="button">
+            Find Perfect Video
+            <div class="loading-spinner"></div>
+        </button>
+    </div>
+
+    <div class="video-container">
+        <div class="close-btn" aria-label="Close video">✕</div>
+        <iframe id="videoPlayer" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" title="YouTube video player"></iframe>
+        <div class="swipe-indicator">
+            Swipe up for next video
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 5L12 19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M19 12L12 5L5 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <div class="next-btn" aria-label="Next video">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M5 12H19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 5L19 12L12 19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="api-key-modal">
+        <div class="api-key-form">
+            <h2>API Configuration</h2>
+            <form id="api-key-form">
+                <label for="openaiKey">OpenAI API Key</label>
+                <input type="password" id="openaiKey" name="openaiKey" class="api-key-input" placeholder="Enter your OpenAI API Key">
+                <label for="youtubeKey">YouTube API Key</label>
+                <input type="password" id="youtubeKey" name="youtubeKey" class="api-key-input" placeholder="Enter your YouTube API Key">
+                <button type="button" id="save-keys-btn" class="submit-btn">Save Keys</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="test-mode">Test Mode</div>
+
+    <div class="time-up-message">Time's up!</div>
+
+    <script>
+        function createDialMarkers() {
+            const dialMarkers = document.querySelector('.dial-markers');
+            dialMarkers.innerHTML = ''; // Clear any existing markers
+            
+            // Get the dial size for calculations
+            const dialRect = document.querySelector('.dial').getBoundingClientRect();
+            const dialSize = Math.min(dialRect.width, dialRect.height);
+            const labelRadius = dialSize * 0.42; // Adjust label distance from center
+            
+            // Only create markers for 0, 5, 10, and 15 minutes
+            const markerMinutes = [0, 5, 10, 15];
+            
+            markerMinutes.forEach(minutes => {
+                // Calculate degrees for this marker
+                const degrees = (minutes / 15) * 360;
+                
+                // Create marker
+                const marker = document.createElement('div');
+                marker.className = 'dial-marker';
+                marker.style.transform = `rotate(${degrees}deg)`;
+                
+                // Create label
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'dial-marker-label';
+                labelDiv.textContent = minutes;
+                
+                // Calculate label position
+                const labelAngle = degrees * (Math.PI / 180);
+                const x = Math.sin(labelAngle) * labelRadius;
+                const y = -Math.cos(labelAngle) * labelRadius;
+                
+                // Position the label
+                labelDiv.style.left = `calc(50% + ${x}px)`;
+                labelDiv.style.top = `calc(50% + ${y}px)`;
+                
+                // Keep text upright
+                let textRotation = 0;
+                if (degrees > 90 && degrees < 270) {
+                    textRotation = 180;
+                }
+                labelDiv.style.transform = `translate(-50%, -50%) rotate(${textRotation}deg)`;
+                
+                // Make 0 and 15 more prominent
+                if (minutes === 0 || minutes === 15) {
+                    marker.style.height = '20px';
+                    labelDiv.style.fontSize = '18px';
+                    labelDiv.style.fontWeight = '900';
+                }
+                
+                dialMarkers.appendChild(marker);
+                dialMarkers.appendChild(labelDiv);
+            });
+        }
+
+        // Create markers initially
+        createDialMarkers();
+
+        // Recreate markers when window is resized
+        window.addEventListener('resize', createDialMarkers);
+
+        // Store keys with SameSite attribute
+        function setLocalStorageWithFallback(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch (e) {
+                console.error('Error saving to localStorage:', e);
+                // Fallback to cookies with SameSite attribute
+                document.cookie = `${key}=${value}; SameSite=Lax; Secure; max-age=31536000; path=/`;
+            }
+        }
+
+        function getStoredValue(key, defaultValue) {
+            try {
+                const localValue = localStorage.getItem(key);
+                if (localValue) return localValue;
+                
+                // Try to get from cookies if localStorage fails
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.startsWith(key + '=')) {
+                        return cookie.substring(key.length + 1);
+                    }
+                }
+                return defaultValue;
+            } catch (e) {
+                console.error('Error accessing storage:', e);
+                return defaultValue;
+            }
+        }
+
+        let dialValue = 120; // 2 minutes in seconds (default)
+        const dial = document.querySelector('.dial');
+        const dialNeedle = document.querySelector('.dial-needle');
+        const dialDisplay = document.querySelector('.dial-value');
+        const dialFill = document.querySelector('.dial-fill');
+        const interestInput = document.getElementById('interest-input');
+        const submitBtn = document.querySelector('.submit-btn');
+        const videoContainer = document.querySelector('.video-container');
+        const videoPlayer = document.querySelector('#videoPlayer');
+        const progressContainer = document.querySelector('.progress-container');
+        const progressBar = document.querySelector('.progress-bar');
+        const closeBtn = document.querySelector('.close-btn');
+        const nextBtn = document.querySelector('.next-btn');
+        let isRotating = false;
+        let startAngle = 0;
+        let currentInterest = '';
+        let progressInterval;
+
+        // Initialize the dial
+        createDialMarkers();
+        updateDialNeedle();
+        updateDialFill();
+
+        // Check for API keys - only show modal if YouTube key is not set
+        if (!getStoredValue('youtubeKey', '') || getStoredValue('youtubeKey', '') === "YOUR_YOUTUBE_API_KEY") {
+            document.querySelector('.api-key-modal').style.display = 'flex';
+        }
+
+        function saveApiKeys() {
+            const openaiKey = document.getElementById('openaiKey').value;
+            const youtubeKey = document.getElementById('youtubeKey').value;
+            
+            if (youtubeKey) {
+                setLocalStorageWithFallback('openaiKey', openaiKey);
+                setLocalStorageWithFallback('youtubeKey', youtubeKey);
+                document.querySelector('.api-key-modal').style.display = 'none';
+            } else {
+                alert('Please enter a YouTube API key');
+            }
+        }
+
+        // Connect the save button to the saveApiKeys function
+        document.getElementById('save-keys-btn').addEventListener('click', saveApiKeys);
+
+        // Handle dial rotation for mouse events
+        dial.addEventListener('mousedown', initRotation);
+        document.addEventListener('mousemove', rotate);
+        document.addEventListener('mouseup', () => isRotating = false);
+
+        // Handle dial rotation for touch events
+        dial.addEventListener('touchstart', initTouchRotation);
+        dial.addEventListener('touchmove', touchRotate);
+        dial.addEventListener('touchend', () => isRotating = false);
+
+        function initRotation(e) {
+            isRotating = true;
+            const rect = dial.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            startAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x) * (180 / Math.PI);
+        }
+
+        function initTouchRotation(e) {
+            isRotating = true;
+            const rect = dial.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            const touch = e.touches[0];
+            startAngle = Math.atan2(touch.clientY - center.y, touch.clientX - center.x) * (180 / Math.PI);
+            e.preventDefault();
+        }
+
+        function rotate(e) {
+            if (!isRotating) return;
+            
+            const rect = dial.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            
+            // Calculate the current angle in degrees
+            const currentAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x) * (180 / Math.PI);
+            
+            // Calculate the angle difference, handling the wrap-around at +/- 180 degrees
+            let angleDiff = currentAngle - startAngle;
+            if (angleDiff > 180) angleDiff -= 360;
+            if (angleDiff < -180) angleDiff += 360;
+            
+            // Make the dial more responsive by scaling the angle difference
+            const secondsChange = angleDiff * 5;
+            
+            // Calculate new value with improved precision
+            let newValue = dialValue + secondsChange;
+            
+            // Snap to 0 if very close
+            if (newValue < 15) {
+                newValue = 0;
+            } else {
+                // Round to nearest 5 seconds for smoother movement
+                newValue = Math.max(0, Math.min(900, Math.round(newValue / 5) * 5));
+            }
+            
+            // Only update if the value has changed
+            if (newValue !== dialValue) {
+                dialValue = newValue;
+                updateDialDisplay();
+                updateDialNeedle();
+                updateDialFill();
+            }
+            
+            // Reset the start angle for the next movement
+            startAngle = currentAngle;
+        }
+
+        function touchRotate(e) {
+            if (!isRotating) return;
+            
+            const rect = dial.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            
+            const touch = e.touches[0];
+            const currentAngle = Math.atan2(touch.clientY - center.y, touch.clientX - center.x) * (180 / Math.PI);
+            
+            let angleDiff = currentAngle - startAngle;
+            if (angleDiff > 180) angleDiff -= 360;
+            if (angleDiff < -180) angleDiff += 360;
+            
+            const secondsChange = angleDiff * 5;
+            
+            let newValue = dialValue + secondsChange;
+            
+            // Snap to 0 if very close
+            if (newValue < 15) {
+                newValue = 0;
+            } else {
+                // Round to nearest 5 seconds for smoother movement
+                newValue = Math.max(0, Math.min(900, Math.round(newValue / 5) * 5));
+            }
+            
+            if (newValue !== dialValue) {
+                dialValue = newValue;
+                updateDialDisplay();
+                updateDialNeedle();
+                updateDialFill();
+            }
+            
+            startAngle = currentAngle;
+            e.preventDefault();
+        }
+
+        function updateDialDisplay() {
+            const minutes = Math.floor(dialValue / 60);
+            const seconds = dialValue % 60;
+            // Always show two digits for minutes and seconds
+            dialDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateDialNeedle() {
+            // Map 0-900 seconds to 0-360 degrees
+            // 900 seconds (15 minutes) = 360 degrees
+            const degrees = (dialValue / 900) * 360;
+            dialNeedle.style.transform = `translateX(-50%) rotate(${degrees}deg)`;
+        }
+
+        function updateDialFill() {
+            // Calculate fill percentage (0 to 1)
+            const fillPercentage = dialValue / 900;
+            
+            if (fillPercentage <= 0) {
+                // Empty
+                dialFill.style.clipPath = 'none';
+                dialFill.style.background = 'transparent';
+                return;
+            }
+            
+            if (fillPercentage >= 1) {
+                // Full circle
+                dialFill.style.clipPath = 'circle(50% at 50% 50%)';
+                dialFill.style.background = 'rgba(29, 185, 84, 0.5)';
+                return;
+            }
+            
+            // Calculate the angle in radians
+            const angle = fillPercentage * 2 * Math.PI;
+            
+            // Calculate points for the pie slice
+            const startX = 50;
+            const startY = 50;
+            const radius = 50;
+            const endX = 50 + radius * Math.sin(angle);
+            const endY = 50 - radius * Math.cos(angle);
+            
+            // Create SVG path for precise pie slice
+            let path = `M ${startX},${startY} L ${startX},0 A ${radius} ${radius} 0 `;
+            path += angle > Math.PI ? '1' : '0';  // Large arc flag
+            path += ` 1 ${endX},${endY} Z`;
+            
+            // Apply the clip path
+            dialFill.style.clipPath = `path('${path}')`;
+            
+            // Change fill color intensity based on value
+            const opacity = 0.3 + (fillPercentage * 0.2);
+            dialFill.style.background = `rgba(29, 185, 84, ${opacity})`;
+        }
+
+        // Handle swipe up for next video
+        let touchStartY = 0;
+        let touchEndY = 0;
+        
+        videoContainer.addEventListener('touchstart', function(e) {
+            touchStartY = e.changedTouches[0].screenY;
+        }, false);
+        
+        videoContainer.addEventListener('touchend', function(e) {
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, false);
+        
+        function handleSwipe() {
+            if (touchStartY - touchEndY > 50) { // Swipe up
+                getNextVideo();
+            }
+        }
+
+        // Close video button
+        closeBtn.addEventListener('click', () => {
+            videoContainer.style.display = 'none';
+            progressContainer.style.display = 'none';
+            clearInterval(progressInterval);
+            videoPlayer.src = ''; // Clear the iframe source when closing
+        });
+
+        // Next video button
+        nextBtn.addEventListener('click', getNextVideo);
+
+        function startProgressBar() {
+            let elapsed = 0;
+            progressBar.style.width = '0%';
+            progressContainer.style.display = 'block';
+            
+            clearInterval(progressInterval);
+            progressInterval = setInterval(() => {
+                elapsed++;
+                const percentage = (elapsed / dialValue) * 100;
+                progressBar.style.width = `${percentage}%`;
+                
+                if (elapsed >= dialValue) {
+                    clearInterval(progressInterval);
+                    showTimeUpMessage();
+                }
+            }, 1000);
+        }
+
+        function showTimeUpMessage() {
+            const timeUpMessage = document.querySelector('.time-up-message');
+            timeUpMessage.style.display = 'block';
+            timeUpMessage.textContent = dialValue === 0 ? "Time to be great, go!" : "Time's up!";
+            
+            // Hide the message after 3 seconds and close the video
+            setTimeout(() => {
+                timeUpMessage.style.display = 'none';
+                closeBtn.click();
+            }, 3000);
+        }
+
+        function getNextVideo() {
+            if (currentInterest) {
+                fetchVideo(currentInterest);
+            }
+        }
+
+        async function fetchVideo(interest) {
+            const errorMessage = document.querySelector('.error-message');
+            const loadingSpinner = document.querySelector('.loading-spinner');
+            const swipeIndicator = document.querySelector('.swipe-indicator');
+            
+            try {
+                submitBtn.disabled = true;
+                loadingSpinner.style.display = 'inline-block';
+                
+                let openaiKey, youtubeKey;
+                openaiKey = getStoredValue('openaiKey', '');
+                youtubeKey = getStoredValue('youtubeKey', '');
+                
+                if (!youtubeKey) {
+                    throw new Error('YouTube API key not found. Please configure your API keys.');
+                }
+                
+                // STANDALONE MODE - No server required
+                // 1. First, create a search query based on the interest
+                const searchQuery = await createSearchQuery(interest);
+                
+                // 2. Then search YouTube directly
+                const video = await searchYouTube(searchQuery, youtubeKey, dialValue);
+                
+                if (video && video.id) {
+                    // Reset swipe indicator to visible
+                    swipeIndicator.style.opacity = '1';
+                    
+                    videoContainer.style.display = 'flex';
+                    // Use embed URL format with origin parameter to help with cross-origin issues
+                    videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`;
+                    errorMessage.style.display = 'none';
+                    
+                    // Start progress bar
+                    startProgressBar();
+                    
+                    // Hide swipe indicator after 2 seconds
+                    setTimeout(() => {
+                        swipeIndicator.style.opacity = '0';
+                    }, 2000);
+                } else {
+                    throw new Error('No suitable videos found. Please try a different interest.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+                videoContainer.style.display = 'none';
+                progressContainer.style.display = 'none';
+            } finally {
+                submitBtn.disabled = false;
+                loadingSpinner.style.display = 'none';
+            }
+        }
+        
+        // Create a search query based on the interest
+        async function createSearchQuery(interest) {
+            // For simplicity, we'll just add some keywords to make the search more specific
+            const minutes = Math.floor(dialValue / 60);
+            const keywords = [
+                'guide', 'tutorial', 'how to', 'explanation', 'tips', 
+                'facts about', 'information', 'learn about'
+            ];
+            
+            // Pick a random keyword to combine with the interest
+            const randomKeyword = keywords[Math.floor(Math.random() * keywords.length)];
+            
+            // Create query with minutes but without explicitly mentioning "english"
+            // The relevanceLanguage parameter in the API call will handle language filtering
+            return `${interest} ${randomKeyword} ${minutes} minutes`;
+        }
+        
+        // Search YouTube directly
+        async function searchYouTube(query, apiKey, targetDuration) {
+            try {
+                // First, search for videos matching the query
+                const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoEmbeddable=true&videoSyndicated=true&maxResults=20&relevanceLanguage=en&key=${apiKey}`;
+                const searchResponse = await fetch(searchUrl);
+                const searchData = await searchResponse.json();
+                
+                if (!searchResponse.ok) {
+                    throw new Error(searchData.error?.message || 'YouTube API error');
+                }
+                
+                if (!searchData.items || searchData.items.length === 0) {
+                    throw new Error('No videos found matching your interest. Please try a different topic.');
+                }
+                
+                // Get video IDs from search results
+                const videoIds = searchData.items.map(item => item.id.videoId).join(',');
+                
+                // Get detailed information about these videos
+                const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,status,snippet&id=${videoIds}&key=${apiKey}`;
+                const detailsResponse = await fetch(detailsUrl);
+                const detailsData = await detailsResponse.json();
+                
+                if (!detailsResponse.ok) {
+                    throw new Error(detailsData.error?.message || 'YouTube API error');
+                }
+                
+                // Combine search results with video details and filter for embeddable videos
+                const videos = [];
+                searchData.items.forEach(searchItem => {
+                    const videoDetails = detailsData.items.find(item => item.id === searchItem.id.videoId);
+                    
+                    if (videoDetails && videoDetails.status.embeddable !== false) {
+                        const duration = parseDuration(videoDetails.contentDetails.duration);
+                        
+                        // Skip videos longer than the selected time
+                        if (duration > targetDuration) {
+                            return;
+                        }
+                        
+                        // Check if video is in English (either by snippet.defaultAudioLanguage or defaultLanguage)
+                        // but don't filter out videos with no language specified
+                        const videoLanguage = videoDetails.snippet.defaultAudioLanguage || videoDetails.snippet.defaultLanguage || '';
+                        const isEnglish = !videoLanguage || videoLanguage.startsWith('en');
+                        
+                        // Skip non-English videos if we can detect the language
+                        if (videoLanguage && !isEnglish) {
+                            return;
+                        }
+                        
+                        // Skip videos that are specifically about learning English language
+                        const title = videoDetails.snippet.title.toLowerCase();
+                        const description = videoDetails.snippet.description.toLowerCase();
+                        if ((title.includes('learn english') || title.includes('english lesson') || 
+                             title.includes('english class') || title.includes('english course')) &&
+                            (description.includes('learn english') || description.includes('english lesson') || 
+                             description.includes('english grammar') || description.includes('english vocabulary'))) {
+                            return;
+                        }
+                        
+                        const viewCount = parseInt(videoDetails.statistics.viewCount || '0');
+                        
+                        // Calculate relevance score based on duration match and view count
+                        const durationDiff = Math.abs(duration - targetDuration);
+                        const durationScore = Math.max(0, 1 - (durationDiff / targetDuration));
+                        const viewScore = Math.min(1, Math.log10(viewCount + 1) / 7);
+                        const relevanceScore = (durationScore * 0.7) + (viewScore * 0.3);
+                        
+                        videos.push({
+                            id: searchItem.id.videoId,
+                            title: searchItem.snippet.title,
+                            channelTitle: searchItem.snippet.channelTitle,
+                            duration: duration,
+                            viewCount: viewCount,
+                            relevanceScore: relevanceScore,
+                            language: videoLanguage
+                        });
+                    }
+                });
+                
+                if (videos.length === 0) {
+                    throw new Error('No suitable videos found. Try a different interest or increase the time.');
+                }
+                
+                // Sort by relevance score (highest first)
+                videos.sort((a, b) => b.relevanceScore - a.relevanceScore);
+                
+                // Return the best match
+                return videos[0];
+            } catch (error) {
+                console.error('YouTube search error:', error);
+                throw error;
+            }
+        }
+        
+        // Parse YouTube duration format (PT1H30M15S) to seconds
+        function parseDuration(duration) {
+            const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+            const hours = (match[1] || '0H').slice(0, -1);
+            const minutes = (match[2] || '0M').slice(0, -1);
+            const seconds = (match[3] || '0S').slice(0, -1);
+            return (parseInt(hours) * 3600) + (parseInt(minutes) * 60) + parseInt(seconds);
+        }
+
+        submitBtn.addEventListener('click', async () => {
+            const interest = interestInput.value.trim();
+            const errorMessage = document.querySelector('.error-message');
+            
+            errorMessage.style.display = 'none';
+            
+            if (!interest) {
+                errorMessage.textContent = 'Please enter your interests';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            // Check if time is 0
+            if (dialValue === 0) {
+                videoContainer.style.display = 'flex';
+                showTimeUpMessage();
+                return;
+            }
+
+            const youtubeKey = getStoredValue('youtubeKey', '');
+
+            if (!youtubeKey || youtubeKey === "YOUR_YOUTUBE_API_KEY") {
+                document.querySelector('.api-key-modal').style.display = 'flex';
+                return;
+            }
+
+            currentInterest = interest;
+            fetchVideo(interest);
+        });
+    </script>
+</body>
+</html>

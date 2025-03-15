@@ -31,16 +31,18 @@
             width: 90%;
             padding: 40px 20px;
             text-align: center;
+            margin: 0 auto;
         }
 
         h1 {
-            font-size: 2.5rem;
+            font-size: min(8vw, 2.5rem);
             margin-bottom: 2rem;
-            background: linear-gradient(45deg, var(--primary-color), #4CAF50);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            text-align: center;
+            color: var(--primary-color);
             font-weight: 800;
             letter-spacing: -0.5px;
+            -webkit-text-fill-color: var(--primary-color);
+            background: none;
         }
 
         @media (max-width: 768px) {
@@ -55,15 +57,47 @@
             }
         }
 
+        @media (orientation: landscape) {
+            .container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: center;
+                max-width: 100%;
+            }
+            
+            h1 {
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+            
+            .dial-container {
+                width: 300px;
+                height: 300px;
+                margin: 0;
+                flex-shrink: 0;
+            }
+            
+            .form-container {
+                width: 45%;
+                margin-left: 5%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
         .progress-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            height: 6px;
-            background: rgba(0, 0, 0, 0.3);
-            z-index: 2001;
+            height: 18px;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2005;
             display: none;
+            transition: height 0.5s ease;
+            overflow: visible;
         }
 
         .progress-bar {
@@ -72,21 +106,31 @@
             width: 0%;
             transition: width 0.5s linear;
             box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+            position: relative;
+        }
+
+        .progress-time {
+            position: absolute;
+            right: 10px;
+            top: 0;
+            color: var(--primary-color);
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 18px;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
         }
 
         .dial-container {
-            margin: 50px auto;
+            margin: 30px auto;
             position: relative;
             width: 300px;
             height: 300px;
-        }
-
-        @media (max-width: 768px) {
-            .dial-container {
-                width: 250px;
-                height: 250px;
-                margin: 30px auto;
-            }
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .dial {
@@ -94,48 +138,52 @@
             height: 100%;
             border-radius: 50%;
             background: var(--secondary-bg);
-            box-shadow: 0 0 30px rgba(29, 185, 84, 0.2);
+            box-shadow: 0 0 50px rgba(29, 185, 84, 0.2);
             position: relative;
             cursor: pointer;
-            border: 3px solid var(--primary-color);
+            border: 2px solid var(--primary-color);
             touch-action: none;
-            overflow: hidden;
+            overflow: visible;
+            box-sizing: border-box;
         }
 
         .dial-fill {
             position: absolute;
             width: 100%;
             height: 100%;
-            background: rgba(29, 185, 84, 0.2);
+            background: rgba(29, 185, 84, 0.15);
+            border-radius: 50%;
             transform-origin: center;
-            transition: all 0.3s ease;
+            top: 0;
+            left: 0;
         }
 
         .dial-needle {
             position: absolute;
-            width: 4px;
+            width: 3px;
             height: 50%;
             background: var(--primary-color);
             top: 0;
             left: 50%;
             transform-origin: bottom center;
             transform: translateX(-50%);
-            border-radius: 4px;
+            border-radius: 3px;
             pointer-events: none;
             z-index: 10;
+            box-shadow: 0 0 20px rgba(29, 185, 84, 0.4);
         }
 
         .dial-needle::after {
             content: '';
             position: absolute;
-            top: 0;
+            bottom: -6px;
             left: 50%;
             transform: translateX(-50%);
             width: 12px;
             height: 12px;
             background: var(--primary-color);
             border-radius: 50%;
-            box-shadow: 0 0 5px rgba(29, 185, 84, 0.5);
+            box-shadow: 0 0 20px rgba(29, 185, 84, 0.6);
         }
 
         .dial-value {
@@ -143,20 +191,15 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: calc(min(2.5rem, 8vw));
-            font-weight: bold;
+            font-size: min(12vw, 4.5rem);
+            font-weight: 700;
             color: var(--primary-color);
             pointer-events: none;
             z-index: 10;
-            text-shadow: 0 0 10px rgba(0,0,0,0.5);
-            min-width: 80px;
+            text-shadow: 0 0 20px rgba(29, 185, 84, 0.4);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -1px;
             text-align: center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
         }
 
         .dial-markers {
@@ -171,75 +214,69 @@
 
         .dial-marker {
             position: absolute;
-            width: 3px;
-            height: 15px;
+            width: 2px;
+            height: 12px;
             background: var(--primary-color);
             top: 0;
             left: 50%;
-            margin-left: -1.5px;
-            transform-origin: bottom center;
+            margin-left: -1px;
+            transform-origin: 50% 100%;
+            box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
         }
 
         .dial-marker-label {
             position: absolute;
             color: var(--primary-color);
-            font-size: 16px;
-            font-weight: bold;
+            font-size: min(4vw, 16px);
+            font-weight: 600;
             white-space: nowrap;
             text-align: center;
             pointer-events: none;
-            text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+            text-shadow: 0 0 10px rgba(29, 185, 84, 0.4);
             transform-origin: center;
             z-index: 6;
-            width: 40px;
-            height: 40px;
             display: flex;
             justify-content: center;
             align-items: center;
             line-height: 1;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 50%;
+            background: none;
+            border: none;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            width: 24px;
+            height: 24px;
         }
 
         @media (max-width: 768px) {
             .dial-container {
-                width: 250px;
-                height: 250px;
-                margin: 30px auto;
-            }
-
-            .dial-marker {
-                height: 8px;
+                width: 280px;
+                height: 280px;
             }
             
             .dial-marker-label {
-                font-size: 11px;
-                width: 20px;
-                height: 20px;
+                font-size: 16px;
             }
             
             .dial-value {
-                font-size: calc(min(2rem, 7vw));
-                min-width: 70px;
-                padding: 8px;
+                font-size: 3rem;
             }
         }
 
         .interest-input {
-            width: 80%;
+            width: min(90%, 400px);
             padding: 15px;
-            margin: 20px 0;
+            margin: 20px auto;
             border: 2px solid var(--primary-color);
             border-radius: 12px;
-            font-size: 16px;
+            font-size: min(4vw, 16px);
             background: var(--secondary-bg);
-            color: var(--text-color);
+            color: var(--primary-color);
             transition: all 0.3s ease;
+            display: block;
+            text-align: center;
         }
 
-        .interest-input:focus {
-            outline: none;
-            box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
+        .interest-input::placeholder {
+            color: rgba(29, 185, 84, 0.6);
         }
 
         .submit-btn {
@@ -271,12 +308,14 @@
         }
 
         .error-message {
-            color: #ff4444;
-            margin: 10px 0;
+            color: var(--primary-color);
+            margin: 10px auto;
             padding: 10px;
             border-radius: 8px;
-            background: rgba(255, 68, 68, 0.1);
+            background: rgba(29, 185, 84, 0.1);
             display: none;
+            text-align: center;
+            max-width: 400px;
         }
 
         .loading-spinner {
@@ -318,15 +357,18 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            color: white;
+            color: var(--primary-color);
             background: rgba(0,0,0,0.5);
             padding: 10px 20px;
             border-radius: 20px;
             display: flex;
             align-items: center;
+            justify-content: center;
             animation: pulse 2s infinite;
             opacity: 1;
             transition: opacity 0.5s ease;
+            text-align: center;
+            pointer-events: none;
         }
 
         .swipe-indicator svg {
@@ -357,12 +399,12 @@
 
         .close-btn {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            bottom: 70px;
+            left: 20px;
             background: rgba(0,0,0,0.5);
             color: white;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -403,9 +445,11 @@
 
         label {
             display: block;
-            text-align: left;
-            margin-bottom: 5px;
-            color: var(--text-color);
+            text-align: center;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            font-size: min(5vw, 1.2rem);
+            font-weight: 500;
         }
 
         .test-mode {
@@ -421,7 +465,7 @@
             color: var(--primary-color);
             padding: 2rem;
             border-radius: 15px;
-            font-size: 2.5rem;
+            font-size: min(8vw, 2.5rem);
             font-weight: bold;
             text-align: center;
             z-index: 2002;
@@ -447,13 +491,15 @@
             </div>
         </div>
         
-        <label for="interest-input">What are you interested in watching?</label>
-        <input type="text" id="interest-input" name="interest" class="interest-input" placeholder="Enter your interests (e.g., dogs, cooking, science)" value="dogs">
-        <div class="error-message" role="alert"></div>
-        <button class="submit-btn" type="button">
-            Find Perfect Video
-            <div class="loading-spinner"></div>
-        </button>
+        <div class="form-container">
+            <label for="interest-input">What are you interested in watching?</label>
+            <input type="text" id="interest-input" name="interest" class="interest-input" placeholder="Enter your interests (e.g., dogs, cooking, science)" value="dogs">
+            <div class="error-message" role="alert"></div>
+            <button class="submit-btn" type="button">
+                Find Perfect Video
+                <div class="loading-spinner"></div>
+            </button>
+        </div>
     </div>
 
     <div class="video-container">
@@ -494,51 +540,51 @@
     <script>
         function createDialMarkers() {
             const dialMarkers = document.querySelector('.dial-markers');
-            dialMarkers.innerHTML = ''; // Clear any existing markers
+            dialMarkers.innerHTML = '';
             
-            // Get the dial size for calculations
             const dialRect = document.querySelector('.dial').getBoundingClientRect();
             const dialSize = Math.min(dialRect.width, dialRect.height);
-            const labelRadius = dialSize * 0.42; // Adjust label distance from center
+            const center = dialSize / 2;
+            const labelRadius = dialSize * 0.55; // For number positions
+            const markerRadius = dialSize * 0.5 - 1; // For dash positions, account for border
             
-            // Only create markers for 0, 5, 10, and 15 minutes
-            const markerMinutes = [0, 5, 10, 15];
-            
-            markerMinutes.forEach(minutes => {
-                // Calculate degrees for this marker
-                const degrees = (minutes / 15) * 360;
+            [0, 5, 10, 15].forEach(minutes => {
+                // Calculate angle in degrees (0 at top, clockwise)
+                const angle = (minutes / 15) * 360 - 90;
+                const angleRad = (angle * Math.PI) / 180;
                 
-                // Create marker
+                // Create marker line (dash)
                 const marker = document.createElement('div');
                 marker.className = 'dial-marker';
-                marker.style.transform = `rotate(${degrees}deg)`;
                 
-                // Create label
+                // Position marker at the edge
+                marker.style.position = 'absolute';
+                marker.style.top = '50%';
+                marker.style.left = '50%';
+                marker.style.height = '12px';
+                marker.style.width = '2px';
+                marker.style.transformOrigin = 'center bottom';
+                marker.style.transform = `rotate(${angle}deg) translateY(-${markerRadius}px)`;
+                
+                // Create and position label (number)
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'dial-marker-label';
                 labelDiv.textContent = minutes;
                 
                 // Calculate label position
-                const labelAngle = degrees * (Math.PI / 180);
-                const x = Math.sin(labelAngle) * labelRadius;
-                const y = -Math.cos(labelAngle) * labelRadius;
+                const x = Math.cos(angleRad) * labelRadius;
+                const y = Math.sin(angleRad) * labelRadius;
                 
-                // Position the label
-                labelDiv.style.left = `calc(50% + ${x}px)`;
-                labelDiv.style.top = `calc(50% + ${y}px)`;
+                // Position label
+                labelDiv.style.position = 'absolute';
+                labelDiv.style.top = `${center + y}px`;
+                labelDiv.style.left = `${center + x}px`;
+                labelDiv.style.transform = 'translate(-50%, -50%)';
                 
-                // Keep text upright
-                let textRotation = 0;
-                if (degrees > 90 && degrees < 270) {
-                    textRotation = 180;
-                }
-                labelDiv.style.transform = `translate(-50%, -50%) rotate(${textRotation}deg)`;
-                
-                // Make 0 and 15 more prominent
+                // Larger text for 0 and 15
                 if (minutes === 0 || minutes === 15) {
-                    marker.style.height = '20px';
                     labelDiv.style.fontSize = '18px';
-                    labelDiv.style.fontWeight = '900';
+                    labelDiv.style.fontWeight = '700';
                 }
                 
                 dialMarkers.appendChild(marker);
@@ -549,8 +595,9 @@
         // Create markers initially
         createDialMarkers();
 
-        // Recreate markers when window is resized
+        // Recreate markers when window is resized or orientation changes
         window.addEventListener('resize', createDialMarkers);
+        window.addEventListener('orientationchange', createDialMarkers);
 
         // Store keys with SameSite attribute
         function setLocalStorageWithFallback(key, value) {
@@ -583,6 +630,7 @@
             }
         }
 
+        // Global variables to track progress
         let dialValue = 120; // 2 minutes in seconds (default)
         const dial = document.querySelector('.dial');
         const dialNeedle = document.querySelector('.dial-needle');
@@ -600,6 +648,10 @@
         let startAngle = 0;
         let currentInterest = '';
         let progressInterval;
+        let touchStartY = 0;
+        let touchEndY = 0;
+        let swipeTimeout;
+        let elapsedTime = 0; // Track elapsed time globally
 
         // Initialize the dial
         createDialMarkers();
@@ -756,50 +808,34 @@
         }
 
         function updateDialFill() {
-            // Calculate fill percentage (0 to 1)
             const fillPercentage = dialValue / 900;
+            const dialFill = document.querySelector('.dial-fill');
             
             if (fillPercentage <= 0) {
-                // Empty
-                dialFill.style.clipPath = 'none';
                 dialFill.style.background = 'transparent';
                 return;
             }
             
             if (fillPercentage >= 1) {
-                // Full circle
-                dialFill.style.clipPath = 'circle(50% at 50% 50%)';
-                dialFill.style.background = 'rgba(29, 185, 84, 0.5)';
+                dialFill.style.background = 'rgba(29, 185, 84, 0.15)';
+                dialFill.style.clipPath = 'none';
                 return;
             }
             
-            // Calculate the angle in radians
-            const angle = fillPercentage * 2 * Math.PI;
+            // Use conic-gradient for more reliable fill
+            const angle = fillPercentage * 360;
             
-            // Calculate points for the pie slice
-            const startX = 50;
-            const startY = 50;
-            const radius = 50;
-            const endX = 50 + radius * Math.sin(angle);
-            const endY = 50 - radius * Math.cos(angle);
+            dialFill.style.background = `conic-gradient(
+                from -90deg,
+                rgba(29, 185, 84, 0.15) 0deg ${angle}deg,
+                transparent ${angle}deg 360deg
+            )`;
             
-            // Create SVG path for precise pie slice
-            let path = `M ${startX},${startY} L ${startX},0 A ${radius} ${radius} 0 `;
-            path += angle > Math.PI ? '1' : '0';  // Large arc flag
-            path += ` 1 ${endX},${endY} Z`;
-            
-            // Apply the clip path
-            dialFill.style.clipPath = `path('${path}')`;
-            
-            // Change fill color intensity based on value
-            const opacity = 0.3 + (fillPercentage * 0.2);
-            dialFill.style.background = `rgba(29, 185, 84, ${opacity})`;
+            // Ensure the fill is properly clipped to a circle
+            dialFill.style.clipPath = 'none';
         }
 
         // Handle swipe up for next video
-        let touchStartY = 0;
-        let touchEndY = 0;
-        
         videoContainer.addEventListener('touchstart', function(e) {
             touchStartY = e.changedTouches[0].screenY;
         }, false);
@@ -812,6 +848,18 @@
         function handleSwipe() {
             if (touchStartY - touchEndY > 50) { // Swipe up
                 getNextVideo();
+                
+                // Show swipe indicator briefly when swiped
+                const swipeIndicator = document.querySelector('.swipe-indicator');
+                swipeIndicator.style.opacity = '1';
+                
+                // Clear any existing timeout
+                clearTimeout(swipeTimeout);
+                
+                // Hide after 2 seconds
+                swipeTimeout = setTimeout(() => {
+                    swipeIndicator.style.opacity = '0';
+                }, 2000);
             }
         }
 
@@ -821,23 +869,109 @@
             progressContainer.style.display = 'none';
             clearInterval(progressInterval);
             videoPlayer.src = ''; // Clear the iframe source when closing
+            
+            // Reset progress bar height for next time
+            progressContainer.style.height = '18px';
+            const progressTime = document.querySelector('.progress-time');
+            if (progressTime) {
+                progressTime.style.opacity = '1';
+            }
         });
 
         // Next video button
         nextBtn.addEventListener('click', getNextVideo);
 
         function startProgressBar() {
-            let elapsed = 0;
+            elapsedTime = 0; // Reset elapsed time when starting fresh
             progressBar.style.width = '0%';
             progressContainer.style.display = 'block';
             
+            // Create or update the time display
+            let progressTime = document.querySelector('.progress-time');
+            if (!progressTime) {
+                progressTime = document.createElement('div');
+                progressTime.className = 'progress-time';
+                progressContainer.appendChild(progressTime);
+            }
+            
+            // Start with larger height
+            progressContainer.style.height = '18px';
+            progressTime.style.opacity = '1';
+            
+            // Format time remaining
+            const formatTimeRemaining = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+            
+            // Update time display
+            progressTime.textContent = formatTimeRemaining(dialValue - elapsedTime);
+            
+            // Schedule the shrink after 4 seconds
+            setTimeout(() => {
+                progressContainer.style.height = '6px';
+                progressTime.style.opacity = '0';
+            }, 4000);
+            
             clearInterval(progressInterval);
             progressInterval = setInterval(() => {
-                elapsed++;
-                const percentage = (elapsed / dialValue) * 100;
+                elapsedTime++;
+                const percentage = (elapsedTime / dialValue) * 100;
                 progressBar.style.width = `${percentage}%`;
                 
-                if (elapsed >= dialValue) {
+                // Update time remaining
+                progressTime.textContent = formatTimeRemaining(dialValue - elapsedTime);
+                
+                if (elapsedTime >= dialValue) {
+                    clearInterval(progressInterval);
+                    showTimeUpMessage();
+                }
+            }, 1000);
+        }
+
+        function continueProgressBar() {
+            // Don't reset elapsed time, just continue from where we left off
+            progressContainer.style.display = 'block';
+            
+            // Create or update the time display
+            let progressTime = document.querySelector('.progress-time');
+            if (!progressTime) {
+                progressTime = document.createElement('div');
+                progressTime.className = 'progress-time';
+                progressContainer.appendChild(progressTime);
+            }
+            
+            // Start with larger height
+            progressContainer.style.height = '18px';
+            progressTime.style.opacity = '1';
+            
+            // Format time remaining
+            const formatTimeRemaining = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+            
+            // Update time display
+            progressTime.textContent = formatTimeRemaining(dialValue - elapsedTime);
+            
+            // Schedule the shrink after 4 seconds
+            setTimeout(() => {
+                progressContainer.style.height = '6px';
+                progressTime.style.opacity = '0';
+            }, 4000);
+            
+            clearInterval(progressInterval);
+            progressInterval = setInterval(() => {
+                elapsedTime++;
+                const percentage = (elapsedTime / dialValue) * 100;
+                progressBar.style.width = `${percentage}%`;
+                
+                // Update time remaining
+                progressTime.textContent = formatTimeRemaining(dialValue - elapsedTime);
+                
+                if (elapsedTime >= dialValue) {
                     clearInterval(progressInterval);
                     showTimeUpMessage();
                 }
@@ -858,11 +992,12 @@
 
         function getNextVideo() {
             if (currentInterest) {
-                fetchVideo(currentInterest);
+                // Don't reset progress bar when getting next video
+                fetchVideo(currentInterest, false);
             }
         }
 
-        async function fetchVideo(interest) {
+        async function fetchVideo(interest, resetProgress = true) {
             const errorMessage = document.querySelector('.error-message');
             const loadingSpinner = document.querySelector('.loading-spinner');
             const swipeIndicator = document.querySelector('.swipe-indicator');
@@ -895,11 +1030,18 @@
                     videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`;
                     errorMessage.style.display = 'none';
                     
-                    // Start progress bar
-                    startProgressBar();
+                    // Start or continue progress bar
+                    if (resetProgress) {
+                        startProgressBar();
+                    } else {
+                        continueProgressBar();
+                    }
+                    
+                    // Clear any existing timeout
+                    clearTimeout(swipeTimeout);
                     
                     // Hide swipe indicator after 2 seconds
-                    setTimeout(() => {
+                    swipeTimeout = setTimeout(() => {
                         swipeIndicator.style.opacity = '0';
                     }, 2000);
                 } else {
@@ -910,7 +1052,7 @@
                 errorMessage.textContent = error.message;
                 errorMessage.style.display = 'block';
                 videoContainer.style.display = 'none';
-                progressContainer.style.display = 'none';
+                // Don't hide progress container when there's an error
             } finally {
                 submitBtn.disabled = false;
                 loadingSpinner.style.display = 'none';
@@ -1066,7 +1208,7 @@
             }
 
             currentInterest = interest;
-            fetchVideo(interest);
+            fetchVideo(interest, true); // Reset progress when starting a new search
         });
     </script>
 </body>

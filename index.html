@@ -22,8 +22,11 @@
             align-items: center;
             background: var(--bg-color);
             color: var(--text-color);
-            overflow-x: hidden;
-            touch-action: manipulation;
+            overflow: hidden;
+            touch-action: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
 
         .container {
@@ -32,6 +35,9 @@
             padding: 40px 20px;
             text-align: center;
             margin: 0 auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            height: 100%;
         }
 
         h1 {
@@ -92,11 +98,11 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 18px;
+            height: 24px;
             background: rgba(0, 0, 0, 0.5);
             z-index: 2005;
             display: none;
-            transition: height 0.5s ease;
+            transition: height 0.3s ease;
             overflow: visible;
         }
 
@@ -115,10 +121,9 @@
             top: 0;
             color: var(--primary-color);
             font-weight: bold;
-            font-size: 14px;
-            line-height: 18px;
+            font-size: 16px;
+            line-height: 24px;
             opacity: 1;
-            transition: opacity 0.5s ease;
             text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
         }
 
@@ -325,6 +330,8 @@
             z-index: 2000;
             display: none;
             flex-direction: column;
+            touch-action: pan-y;
+            overflow: hidden;
         }
 
         #videoPlayer {
@@ -350,6 +357,7 @@
             transition: opacity 0.5s ease;
             text-align: center;
             pointer-events: none;
+            z-index: 2002;
         }
 
         .swipe-indicator svg {
@@ -380,8 +388,8 @@
 
         .close-btn {
             position: absolute;
-            bottom: 70px;
-            left: 20px;
+            bottom: 130px;
+            right: 20px;
             background: rgba(0,0,0,0.5);
             color: white;
             width: 50px;
@@ -439,19 +447,22 @@
 
         .time-up-message {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
             color: var(--primary-color);
-            padding: 2rem;
-            border-radius: 15px;
-            font-size: min(8vw, 2.5rem);
-            font-weight: bold;
-            text-align: center;
-            z-index: 2002;
             display: none;
-            box-shadow: 0 0 30px rgba(29, 185, 84, 0.3);
+            justify-content: center;
+            align-items: center;
+            z-index: 2002;
+            font-size: min(15vw, 5rem);
+            font-weight: 800;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 50px rgba(29, 185, 84, 0.5);
         }
     </style>
 </head>
@@ -621,6 +632,7 @@
             } else if (fillPercentage >= 1) {
                 dialFill.style.background = 'rgba(29, 185, 84, 0.15)';
             } else {
+                // Use conic-gradient for the fill, starting from the top (-90deg)
                 dialFill.style.background = `conic-gradient(
                     from -90deg,
                     rgba(29, 185, 84, 0.15) 0deg ${angle}deg,
@@ -646,8 +658,12 @@
             initializeDial();
             
             // Add event listeners for window resize and orientation change
-            window.addEventListener('resize', createDialMarkers);
-            window.addEventListener('orientationchange', createDialMarkers);
+            window.addEventListener('resize', function() {
+                createDialMarkers();
+                // Update viewport height on resize
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+            });
         });
 
         // Handle dial rotation for mouse events
@@ -798,30 +814,67 @@
         // Handle swipe up for next video
         videoContainer.addEventListener('touchstart', function(e) {
             touchStartY = e.changedTouches[0].screenY;
-        }, false);
+        }, { passive: false });
         
-        videoContainer.addEventListener('touchend', function(e) {
-            touchEndY = e.changedTouches[0].screenY;
-            handleSwipe();
-        }, false);
-        
-        function handleSwipe() {
-            if (touchStartY - touchEndY > 50) { // Swipe up
-                getNextVideo();
+        videoContainer.addEventListener('touchmove', function(e) {
+            // Get current touch position
+            const currentY = e.changedTouches[0].screenY;
+            // Calculate distance moved
+            const deltaY = touchStartY - currentY;
+            
+            // If swiping up significantly, prevent default to avoid browser UI showing
+            if (deltaY > 30) {
+                e.preventDefault();
                 
-                // Show swipe indicator briefly when swiped
+                // Optional: Add visual feedback during swipe
+                const translateY = Math.min(deltaY, 100); // Cap at 100px
+                videoContainer.style.transform = `translateY(-${translateY}px)`;
+                
+                // Show swipe indicator when user starts swiping
                 const swipeIndicator = document.querySelector('.swipe-indicator');
                 swipeIndicator.style.opacity = '1';
                 
                 // Clear any existing timeout
                 clearTimeout(swipeTimeout);
+            }
+        }, { passive: false });
+        
+        videoContainer.addEventListener('touchend', function(e) {
+            touchEndY = e.changedTouches[0].screenY;
+            const swipeDistance = touchStartY - touchEndY;
+            
+            // Reset transform regardless of swipe direction
+            videoContainer.style.transform = 'translateY(0)';
+            
+            // If swiped up significantly, trigger next video
+            if (swipeDistance > 100) { // Increased threshold for more intentional swipes
+                // Add a sliding up animation
+                videoContainer.style.transition = 'transform 0.5s ease-out';
+                videoContainer.style.transform = 'translateY(-100%)';
                 
-                // Hide after 2 seconds
+                // After animation completes, reset position and get next video
+                setTimeout(() => {
+                    videoContainer.style.transition = 'none';
+                    videoContainer.style.transform = 'translateY(0)';
+                    getNextVideo();
+                }, 500);
+            } else {
+                // Hide swipe indicator after a short delay if not swiped enough
                 swipeTimeout = setTimeout(() => {
+                    const swipeIndicator = document.querySelector('.swipe-indicator');
                     swipeIndicator.style.opacity = '0';
                 }, 2000);
             }
-        }
+        }, { passive: false });
+
+        // Prevent default on touchmove for the entire document to disable scrolling
+        document.addEventListener('touchmove', function(e) {
+            // Allow scrolling only within elements that need it
+            const isScrollableElement = e.target.closest('.container');
+            if (!isScrollableElement) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         // Close video button
         closeBtn.addEventListener('click', () => {
@@ -831,7 +884,7 @@
             videoPlayer.src = ''; // Clear the iframe source when closing
             
             // Reset progress bar height for next time
-            progressContainer.style.height = '18px';
+            progressContainer.style.height = '24px';
             const progressTime = document.querySelector('.progress-time');
             if (progressTime) {
                 progressTime.style.opacity = '1';
@@ -840,6 +893,43 @@
 
         // Next video button
         nextBtn.addEventListener('click', getNextVideo);
+
+        // Function to handle orientation changes specifically for iOS
+        function handleIOSOrientationChange() {
+            // Force redraw by temporarily changing a style property
+            document.body.style.display = 'none';
+            // Trigger reflow
+            void document.body.offsetHeight;
+            document.body.style.display = '';
+            
+            // Recreate dial markers after a short delay to ensure dimensions are updated
+            setTimeout(createDialMarkers, 300);
+            
+            // Update viewport height for iOS
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+
+        // Add event listeners for orientation changes
+        window.addEventListener('orientationchange', handleIOSOrientationChange);
+
+        // Set initial viewport height
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial viewport height for iOS
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+            
+            // Initialize dial
+            initializeDial();
+            
+            // Add event listeners for window resize and orientation change
+            window.addEventListener('resize', function() {
+                createDialMarkers();
+                // Update viewport height on resize
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+            });
+        });
 
         function startProgressBar() {
             elapsedTime = 0; // Reset elapsed time when starting fresh
@@ -854,8 +944,8 @@
                 progressContainer.appendChild(progressTime);
             }
             
-            // Start with larger height
-            progressContainer.style.height = '18px';
+            // Keep progress bar large and visible
+            progressContainer.style.height = '24px';
             progressTime.style.opacity = '1';
             
             // Format time remaining
@@ -867,12 +957,6 @@
             
             // Update time display
             progressTime.textContent = formatTimeRemaining(dialValue - elapsedTime);
-            
-            // Schedule the shrink after 4 seconds
-            setTimeout(() => {
-                progressContainer.style.height = '6px';
-                progressTime.style.opacity = '0';
-            }, 4000);
             
             clearInterval(progressInterval);
             progressInterval = setInterval(() => {
@@ -902,8 +986,8 @@
                 progressContainer.appendChild(progressTime);
             }
             
-            // Start with larger height
-            progressContainer.style.height = '18px';
+            // Keep progress bar large and visible
+            progressContainer.style.height = '24px';
             progressTime.style.opacity = '1';
             
             // Format time remaining
@@ -915,12 +999,6 @@
             
             // Update time display
             progressTime.textContent = formatTimeRemaining(dialValue - elapsedTime);
-            
-            // Schedule the shrink after 4 seconds
-            setTimeout(() => {
-                progressContainer.style.height = '6px';
-                progressTime.style.opacity = '0';
-            }, 4000);
             
             clearInterval(progressInterval);
             progressInterval = setInterval(() => {
@@ -940,8 +1018,8 @@
 
         function showTimeUpMessage() {
             const timeUpMessage = document.querySelector('.time-up-message');
-            timeUpMessage.style.display = 'block';
-            timeUpMessage.textContent = dialValue === 0 ? "Time to be great, go!" : "Time's up!";
+            timeUpMessage.style.display = 'flex'; // Changed to flex for centering
+            timeUpMessage.textContent = dialValue === 0 ? "TIME TO GO" : "TIME TO GO";
             
             // Hide the message after 3 seconds and close the video
             setTimeout(() => {
@@ -987,7 +1065,8 @@
                     
                     videoContainer.style.display = 'flex';
                     // Use embed URL format with origin parameter to help with cross-origin issues
-                    videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`;
+                    // Added autoplay=1 and rel=0 to prevent showing related videos
+                    videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0`;
                     errorMessage.style.display = 'none';
                     
                     // Start or continue progress bar
@@ -1000,10 +1079,13 @@
                     // Clear any existing timeout
                     clearTimeout(swipeTimeout);
                     
-                    // Hide swipe indicator after 2 seconds
+                    // Hide swipe indicator after 5 seconds (increased from 2 seconds for better visibility)
                     swipeTimeout = setTimeout(() => {
                         swipeIndicator.style.opacity = '0';
-                    }, 2000);
+                    }, 5000);
+                    
+                    // Set up event listener for video end
+                    setupVideoEndListener(video.id);
                 } else {
                     throw new Error('No suitable videos found. Please try a different interest.');
                 }
@@ -1171,6 +1253,55 @@
             currentInterest = interest;
             fetchVideo(interest, true); // Reset progress when starting a new search
         });
+
+        // Function to set up event listener for video end
+        function setupVideoEndListener(videoId) {
+            // Create YouTube Player API script if it doesn't exist
+            if (!window.YT) {
+                const tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                const firstScriptTag = document.getElementsByTagName('script')[0];
+                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                
+                window.onYouTubeIframeAPIReady = function() {
+                    createYTPlayer(videoId);
+                };
+            } else {
+                createYTPlayer(videoId);
+            }
+        }
+
+        // Create YouTube player and set up event listeners
+        function createYTPlayer(videoId) {
+            if (window.player) {
+                window.player.destroy();
+            }
+            
+            window.player = new YT.Player('videoPlayer', {
+                videoId: videoId,
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        // Handle player state changes
+        function onPlayerStateChange(event) {
+            // When video ends (state = 0), play next video
+            if (event.data === 0) {
+                // Add a sliding up animation
+                const videoContainer = document.querySelector('.video-container');
+                videoContainer.style.transition = 'transform 0.5s ease-out';
+                videoContainer.style.transform = 'translateY(-100%)';
+                
+                // After animation completes, reset position and get next video
+                setTimeout(() => {
+                    videoContainer.style.transition = 'none';
+                    videoContainer.style.transform = 'translateY(0)';
+                    getNextVideo();
+                }, 500);
+            }
+        }
     </script>
 </body>
 </html>

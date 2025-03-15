@@ -143,12 +143,20 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 2.5rem;
+            font-size: calc(min(2.5rem, 8vw));
             font-weight: bold;
             color: var(--primary-color);
             pointer-events: none;
             z-index: 10;
             text-shadow: 0 0 10px rgba(0,0,0,0.5);
+            min-width: 80px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
         }
 
         .dial-markers {
@@ -163,50 +171,57 @@
 
         .dial-marker {
             position: absolute;
-            width: 2px;
-            height: 10px;
-            background: rgba(255, 255, 255, 0.3);
-            top: 0;
-            left: 50%;
-            margin-left: -1px;
-            transform-origin: bottom center;
-        }
-
-        .dial-marker.major {
             width: 3px;
             height: 15px;
             background: var(--primary-color);
+            top: 0;
+            left: 50%;
             margin-left: -1.5px;
+            transform-origin: bottom center;
         }
 
         .dial-marker-label {
             position: absolute;
             color: var(--primary-color);
-            font-size: 12px;
+            font-size: 16px;
             font-weight: bold;
             white-space: nowrap;
             text-align: center;
             pointer-events: none;
             text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
-            transform: translate(-50%, -50%);
+            transform-origin: center;
             z-index: 6;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
         }
 
         @media (max-width: 768px) {
+            .dial-container {
+                width: 250px;
+                height: 250px;
+                margin: 30px auto;
+            }
+
             .dial-marker {
                 height: 8px;
             }
             
-            .dial-marker.major {
-                height: 12px;
-            }
-            
             .dial-marker-label {
                 font-size: 11px;
+                width: 20px;
+                height: 20px;
             }
             
             .dial-value {
-                font-size: 2rem;
+                font-size: calc(min(2rem, 7vw));
+                min-width: 70px;
+                padding: 8px;
             }
         }
 
@@ -477,70 +492,58 @@
     <div class="time-up-message">Time's up!</div>
 
     <script>
-        // Create dial markers
         function createDialMarkers() {
             const dialMarkers = document.querySelector('.dial-markers');
             dialMarkers.innerHTML = ''; // Clear any existing markers
             
-            // Create 60 markers (one for each 6 degrees)
-            for (let i = 0; i < 60; i++) {
-                const degrees = i * 6;
+            // Get the dial size for calculations
+            const dialRect = document.querySelector('.dial').getBoundingClientRect();
+            const dialSize = Math.min(dialRect.width, dialRect.height);
+            const labelRadius = dialSize * 0.42; // Adjust label distance from center
+            
+            // Only create markers for 0, 5, 10, and 15 minutes
+            const markerMinutes = [0, 5, 10, 15];
+            
+            markerMinutes.forEach(minutes => {
+                // Calculate degrees for this marker
+                const degrees = (minutes / 15) * 360;
                 
                 // Create marker
                 const marker = document.createElement('div');
                 marker.className = 'dial-marker';
-                
-                // Position and rotate marker
-                marker.style.position = 'absolute';
-                marker.style.top = '0';
-                marker.style.left = '50%';
-                marker.style.marginLeft = '-1px';
-                marker.style.transformOrigin = 'bottom center';
                 marker.style.transform = `rotate(${degrees}deg)`;
                 
-                // Add major markers and labels for every 5 minutes
-                if (i % 5 === 0) {
-                    marker.classList.add('major');
-                    marker.style.marginLeft = '-1.5px';
-                    
-                    // Make 5-minute markers green
-                    marker.style.background = 'var(--primary-color)';
-                    
-                    // Calculate minutes for this marker (i ranges from 0 to 59, representing 0 to 15 minutes)
-                    const minutes = Math.floor((i / 60) * 15);
-                    
-                    // Add labels for 5-minute intervals
-                    const labelDiv = document.createElement('div');
-                    labelDiv.className = 'dial-marker-label';
-                    labelDiv.textContent = `${minutes}m`;
-                    
-                    // Position the label based on its angle
-                    const labelRadius = 130; // Increased distance from center
-                    const labelAngle = degrees * (Math.PI / 180);
-                    const x = Math.sin(labelAngle) * labelRadius;
-                    const y = -Math.cos(labelAngle) * labelRadius;
-                    
-                    labelDiv.style.position = 'absolute';
-                    labelDiv.style.left = `calc(50% + ${x}px)`;
-                    labelDiv.style.top = `calc(50% + ${y}px)`;
-                    labelDiv.style.transform = 'translate(-50%, -50%)';
-                    
-                    // Make 15-minute markers larger
-                    if (i % 15 === 0) {
-                        marker.style.height = '18px';
-                        labelDiv.style.fontSize = '14px';
-                        labelDiv.style.fontWeight = '800';
-                    } else {
-                        marker.style.opacity = '0.7';
-                        labelDiv.style.fontSize = '12px';
-                        labelDiv.style.opacity = '0.8';
-                    }
-                    
-                    dialMarkers.appendChild(labelDiv);
+                // Create label
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'dial-marker-label';
+                labelDiv.textContent = minutes;
+                
+                // Calculate label position
+                const labelAngle = degrees * (Math.PI / 180);
+                const x = Math.sin(labelAngle) * labelRadius;
+                const y = -Math.cos(labelAngle) * labelRadius;
+                
+                // Position the label
+                labelDiv.style.left = `calc(50% + ${x}px)`;
+                labelDiv.style.top = `calc(50% + ${y}px)`;
+                
+                // Keep text upright
+                let textRotation = 0;
+                if (degrees > 90 && degrees < 270) {
+                    textRotation = 180;
+                }
+                labelDiv.style.transform = `translate(-50%, -50%) rotate(${textRotation}deg)`;
+                
+                // Make 0 and 15 more prominent
+                if (minutes === 0 || minutes === 15) {
+                    marker.style.height = '20px';
+                    labelDiv.style.fontSize = '18px';
+                    labelDiv.style.fontWeight = '900';
                 }
                 
                 dialMarkers.appendChild(marker);
-            }
+                dialMarkers.appendChild(labelDiv);
+            });
         }
 
         // Create markers initially
@@ -674,16 +677,26 @@
             if (angleDiff < -180) angleDiff += 360;
             
             // Make the dial more responsive by scaling the angle difference
-            // 1 degree rotation = 5 seconds change
             const secondsChange = angleDiff * 5;
             
-            // Update the dial value, clamping between 0 and 900 seconds (15 minutes)
-            dialValue = Math.max(0, Math.min(900, Math.round(dialValue + secondsChange)));
+            // Calculate new value with improved precision
+            let newValue = dialValue + secondsChange;
             
-            // Update the UI
-            updateDialDisplay();
-            updateDialNeedle();
-            updateDialFill();
+            // Snap to 0 if very close
+            if (newValue < 15) {
+                newValue = 0;
+            } else {
+                // Round to nearest 5 seconds for smoother movement
+                newValue = Math.max(0, Math.min(900, Math.round(newValue / 5) * 5));
+            }
+            
+            // Only update if the value has changed
+            if (newValue !== dialValue) {
+                dialValue = newValue;
+                updateDialDisplay();
+                updateDialNeedle();
+                updateDialFill();
+            }
             
             // Reset the start angle for the next movement
             startAngle = currentAngle;
@@ -699,35 +712,39 @@
             };
             
             const touch = e.touches[0];
-            // Calculate the current angle in degrees
             const currentAngle = Math.atan2(touch.clientY - center.y, touch.clientX - center.x) * (180 / Math.PI);
             
-            // Calculate the angle difference, handling the wrap-around at +/- 180 degrees
             let angleDiff = currentAngle - startAngle;
             if (angleDiff > 180) angleDiff -= 360;
             if (angleDiff < -180) angleDiff += 360;
             
-            // Make the dial more responsive by scaling the angle difference
-            // 1 degree rotation = 5 seconds change
             const secondsChange = angleDiff * 5;
             
-            // Update the dial value, clamping between 0 and 900 seconds (15 minutes)
-            dialValue = Math.max(0, Math.min(900, Math.round(dialValue + secondsChange)));
+            let newValue = dialValue + secondsChange;
             
-            // Update the UI
-            updateDialDisplay();
-            updateDialNeedle();
-            updateDialFill();
+            // Snap to 0 if very close
+            if (newValue < 15) {
+                newValue = 0;
+            } else {
+                // Round to nearest 5 seconds for smoother movement
+                newValue = Math.max(0, Math.min(900, Math.round(newValue / 5) * 5));
+            }
             
-            // Reset the start angle for the next movement
+            if (newValue !== dialValue) {
+                dialValue = newValue;
+                updateDialDisplay();
+                updateDialNeedle();
+                updateDialFill();
+            }
+            
             startAngle = currentAngle;
-            
             e.preventDefault();
         }
 
         function updateDialDisplay() {
             const minutes = Math.floor(dialValue / 60);
             const seconds = dialValue % 60;
+            // Always show two digits for minutes and seconds
             dialDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
 
@@ -756,30 +773,23 @@
                 return;
             }
             
-            // Calculate the angle in degrees (0 to 360)
-            const angle = fillPercentage * 360;
+            // Calculate the angle in radians
+            const angle = fillPercentage * 2 * Math.PI;
             
-            // Create a polygon-based clip path for the pie slice
-            // Start with the center point
-            let clipPath = 'polygon(50% 50%';
+            // Calculate points for the pie slice
+            const startX = 50;
+            const startY = 50;
+            const radius = 50;
+            const endX = 50 + radius * Math.sin(angle);
+            const endY = 50 - radius * Math.cos(angle);
             
-            // Add the top center point (0 degrees)
-            clipPath += ', 50% 0%';
+            // Create SVG path for precise pie slice
+            let path = `M ${startX},${startY} L ${startX},0 A ${radius} ${radius} 0 `;
+            path += angle > Math.PI ? '1' : '0';  // Large arc flag
+            path += ` 1 ${endX},${endY} Z`;
             
-            // Add points along the arc
-            const steps = Math.max(2, Math.floor(angle / 6)); // At least 2 points, more for larger angles
-            for (let i = 1; i <= steps; i++) {
-                const pointAngle = (i * angle / steps) * Math.PI / 180;
-                const x = 50 + 50 * Math.sin(pointAngle);
-                const y = 50 - 50 * Math.cos(pointAngle);
-                clipPath += `, ${x}% ${y}%`;
-            }
-            
-            // Close the polygon
-            clipPath += ')';
-            
-            // Apply the clip path and background
-            dialFill.style.clipPath = clipPath;
+            // Apply the clip path
+            dialFill.style.clipPath = `path('${path}')`;
             
             // Change fill color intensity based on value
             const opacity = 0.3 + (fillPercentage * 0.2);

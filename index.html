@@ -128,9 +128,6 @@
             width: 300px;
             height: 300px;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         .dial {
@@ -143,19 +140,17 @@
             cursor: pointer;
             border: 2px solid var(--primary-color);
             touch-action: none;
-            overflow: visible;
             box-sizing: border-box;
         }
 
         .dial-fill {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            background: rgba(29, 185, 84, 0.15);
-            border-radius: 50%;
-            transform-origin: center;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            pointer-events: none;
         }
 
         .dial-needle {
@@ -209,7 +204,6 @@
             top: 0;
             left: 0;
             pointer-events: none;
-            z-index: 5;
         }
 
         .dial-marker {
@@ -217,33 +211,20 @@
             width: 2px;
             height: 12px;
             background: var(--primary-color);
-            top: 0;
-            left: 50%;
-            margin-left: -1px;
-            transform-origin: 50% 100%;
+            transform-origin: center bottom;
             box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
         }
 
         .dial-marker-label {
             position: absolute;
             color: var(--primary-color);
-            font-size: min(4vw, 16px);
+            font-size: 16px;
             font-weight: 600;
             white-space: nowrap;
             text-align: center;
             pointer-events: none;
             text-shadow: 0 0 10px rgba(29, 185, 84, 0.4);
-            transform-origin: center;
-            z-index: 6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            line-height: 1;
-            background: none;
-            border: none;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            width: 24px;
-            height: 24px;
         }
 
         @media (max-width: 768px) {
@@ -538,66 +519,229 @@
     <div class="time-up-message">Time's up!</div>
 
     <script>
+        // Global variables to track progress
+        let dialValue = 120; // 2 minutes in seconds (default)
+        const dial = document.querySelector('.dial');
+        const dialNeedle = document.querySelector('.dial-needle');
+        const dialDisplay = document.querySelector('.dial-value');
+        const dialFill = document.querySelector('.dial-fill');
+        const interestInput = document.getElementById('interest-input');
+        const submitBtn = document.querySelector('.submit-btn');
+        const videoContainer = document.querySelector('.video-container');
+        const videoPlayer = document.querySelector('#videoPlayer');
+        const progressContainer = document.querySelector('.progress-container');
+        const progressBar = document.querySelector('.progress-bar');
+        const closeBtn = document.querySelector('.close-btn');
+        const nextBtn = document.querySelector('.next-btn');
+        let isRotating = false;
+        let startAngle = 0;
+        let currentInterest = '';
+        let progressInterval;
+        let touchStartY = 0;
+        let touchEndY = 0;
+        let swipeTimeout;
+        let elapsedTime = 0; // Track elapsed time globally
+
+        // Function to create dial markers
         function createDialMarkers() {
             const dialMarkers = document.querySelector('.dial-markers');
             dialMarkers.innerHTML = '';
             
-            const dialRect = document.querySelector('.dial').getBoundingClientRect();
-            const dialSize = Math.min(dialRect.width, dialRect.height);
+            const dialSize = dial.offsetWidth;
             const center = dialSize / 2;
-            const labelRadius = dialSize * 0.55; // For number positions
-            const markerRadius = dialSize * 0.5 - 1; // For dash positions, account for border
             
-            [0, 5, 10, 15].forEach(minutes => {
-                // Calculate angle in degrees (0 at top, clockwise)
-                const angle = (minutes / 15) * 360 - 90;
-                const angleRad = (angle * Math.PI) / 180;
+            for (let i = 0; i <= 15; i += 5) {
+                const minutes = i;
+                const angle = (minutes / 15) * 360 - 90; // -90 to start at top
+                const radians = (angle * Math.PI) / 180;
                 
-                // Create marker line (dash)
+                // Create marker (dash)
                 const marker = document.createElement('div');
                 marker.className = 'dial-marker';
                 
-                // Position marker at the edge
+                // Position marker at the edge of the dial
+                const markerDistance = center - 2; // Account for border
+                const markerX = center + Math.cos(radians) * markerDistance;
+                const markerY = center + Math.sin(radians) * markerDistance;
+                
                 marker.style.position = 'absolute';
-                marker.style.top = '50%';
-                marker.style.left = '50%';
-                marker.style.height = '12px';
                 marker.style.width = '2px';
-                marker.style.transformOrigin = 'center bottom';
-                marker.style.transform = `rotate(${angle}deg) translateY(-${markerRadius}px)`;
+                marker.style.height = '12px';
+                marker.style.left = `${markerX}px`;
+                marker.style.top = `${markerY}px`;
+                marker.style.transform = `rotate(${angle + 90}deg)`;
                 
-                // Create and position label (number)
-                const labelDiv = document.createElement('div');
-                labelDiv.className = 'dial-marker-label';
-                labelDiv.textContent = minutes;
+                // Create label (number)
+                const label = document.createElement('div');
+                label.className = 'dial-marker-label';
+                label.textContent = minutes;
                 
-                // Calculate label position
-                const x = Math.cos(angleRad) * labelRadius;
-                const y = Math.sin(angleRad) * labelRadius;
+                // Position label inside the dial
+                const labelDistance = center * 0.7;
+                const labelX = center + Math.cos(radians) * labelDistance;
+                const labelY = center + Math.sin(radians) * labelDistance;
                 
-                // Position label
-                labelDiv.style.position = 'absolute';
-                labelDiv.style.top = `${center + y}px`;
-                labelDiv.style.left = `${center + x}px`;
-                labelDiv.style.transform = 'translate(-50%, -50%)';
+                label.style.position = 'absolute';
+                label.style.left = `${labelX}px`;
+                label.style.top = `${labelY}px`;
+                label.style.transform = 'translate(-50%, -50%)';
                 
-                // Larger text for 0 and 15
+                // Make 0 and 15 slightly larger
                 if (minutes === 0 || minutes === 15) {
-                    labelDiv.style.fontSize = '18px';
-                    labelDiv.style.fontWeight = '700';
+                    label.style.fontSize = '18px';
+                    label.style.fontWeight = '700';
                 }
                 
                 dialMarkers.appendChild(marker);
-                dialMarkers.appendChild(labelDiv);
-            });
+                dialMarkers.appendChild(label);
+            }
         }
 
-        // Create markers initially
-        createDialMarkers();
+        // Function to update the dial display (time text)
+        function updateDialDisplay() {
+            const minutes = Math.floor(dialValue / 60);
+            const seconds = dialValue % 60;
+            // Always show two digits for minutes and seconds
+            dialDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
 
-        // Recreate markers when window is resized or orientation changes
-        window.addEventListener('resize', createDialMarkers);
-        window.addEventListener('orientationchange', createDialMarkers);
+        // Function to update the dial needle position
+        function updateDialNeedle() {
+            const degrees = (dialValue / 900) * 360;
+            dialNeedle.style.transform = `translateX(-50%) rotate(${degrees}deg)`;
+        }
+
+        // Function to update the dial fill
+        function updateDialFill() {
+            const fillPercentage = dialValue / 900; // 900 seconds = 15 minutes
+            const angle = fillPercentage * 360;
+            
+            if (fillPercentage <= 0) {
+                dialFill.style.background = 'transparent';
+            } else if (fillPercentage >= 1) {
+                dialFill.style.background = 'rgba(29, 185, 84, 0.15)';
+            } else {
+                dialFill.style.background = `conic-gradient(
+                    from -90deg,
+                    rgba(29, 185, 84, 0.15) 0deg ${angle}deg,
+                    transparent ${angle}deg 360deg
+                )`;
+            }
+        }
+
+        // Initialize the dial
+        function initializeDial() {
+            dialValue = 120; // 2 minutes default
+            updateDialDisplay();
+            updateDialNeedle();
+            updateDialFill();
+            createDialMarkers();
+        }
+
+        // Initialize immediately
+        initializeDial();
+
+        // Also initialize on DOMContentLoaded for safety
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDial();
+            
+            // Add event listeners for window resize and orientation change
+            window.addEventListener('resize', createDialMarkers);
+            window.addEventListener('orientationchange', createDialMarkers);
+        });
+
+        // Handle dial rotation for mouse events
+        dial.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            isRotating = true;
+            const rect = dial.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            startAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x);
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isRotating) return;
+            
+            const rect = dial.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            
+            const currentAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x);
+            let angleDiff = currentAngle - startAngle;
+            
+            // Convert to seconds (15 minutes = 900 seconds = 2π radians)
+            const secondsChange = angleDiff * (900 / (2 * Math.PI));
+            
+            // Update the dial value
+            let newValue = dialValue + secondsChange;
+            newValue = Math.max(0, Math.min(900, Math.round(newValue / 5) * 5));
+            
+            if (newValue !== dialValue) {
+                dialValue = newValue;
+                updateDialDisplay();
+                updateDialNeedle();
+                updateDialFill();
+            }
+            
+            startAngle = currentAngle;
+        });
+
+        document.addEventListener('mouseup', function() {
+            isRotating = false;
+        });
+
+        // Handle dial rotation for touch events
+        dial.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            isRotating = true;
+            const rect = dial.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            const touch = e.touches[0];
+            startAngle = Math.atan2(touch.clientY - center.y, touch.clientX - center.x);
+        });
+
+        dial.addEventListener('touchmove', function(e) {
+            if (!isRotating) return;
+            
+            const rect = dial.getBoundingClientRect();
+            const center = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            
+            const touch = e.touches[0];
+            const currentAngle = Math.atan2(touch.clientY - center.y, touch.clientX - center.x);
+            let angleDiff = currentAngle - startAngle;
+            
+            // Convert to seconds (15 minutes = 900 seconds = 2π radians)
+            const secondsChange = angleDiff * (900 / (2 * Math.PI));
+            
+            // Update the dial value
+            let newValue = dialValue + secondsChange;
+            newValue = Math.max(0, Math.min(900, Math.round(newValue / 5) * 5));
+            
+            if (newValue !== dialValue) {
+                dialValue = newValue;
+                updateDialDisplay();
+                updateDialNeedle();
+                updateDialFill();
+            }
+            
+            startAngle = currentAngle;
+            e.preventDefault();
+        });
+
+        dial.addEventListener('touchend', function() {
+            isRotating = false;
+        });
 
         // Store keys with SameSite attribute
         function setLocalStorageWithFallback(key, value) {
@@ -630,34 +774,6 @@
             }
         }
 
-        // Global variables to track progress
-        let dialValue = 120; // 2 minutes in seconds (default)
-        const dial = document.querySelector('.dial');
-        const dialNeedle = document.querySelector('.dial-needle');
-        const dialDisplay = document.querySelector('.dial-value');
-        const dialFill = document.querySelector('.dial-fill');
-        const interestInput = document.getElementById('interest-input');
-        const submitBtn = document.querySelector('.submit-btn');
-        const videoContainer = document.querySelector('.video-container');
-        const videoPlayer = document.querySelector('#videoPlayer');
-        const progressContainer = document.querySelector('.progress-container');
-        const progressBar = document.querySelector('.progress-bar');
-        const closeBtn = document.querySelector('.close-btn');
-        const nextBtn = document.querySelector('.next-btn');
-        let isRotating = false;
-        let startAngle = 0;
-        let currentInterest = '';
-        let progressInterval;
-        let touchStartY = 0;
-        let touchEndY = 0;
-        let swipeTimeout;
-        let elapsedTime = 0; // Track elapsed time globally
-
-        // Initialize the dial
-        createDialMarkers();
-        updateDialNeedle();
-        updateDialFill();
-
         // Check for API keys - only show modal if YouTube key is not set
         if (!getStoredValue('youtubeKey', '') || getStoredValue('youtubeKey', '') === "YOUR_YOUTUBE_API_KEY") {
             document.querySelector('.api-key-modal').style.display = 'flex';
@@ -678,162 +794,6 @@
 
         // Connect the save button to the saveApiKeys function
         document.getElementById('save-keys-btn').addEventListener('click', saveApiKeys);
-
-        // Handle dial rotation for mouse events
-        dial.addEventListener('mousedown', initRotation);
-        document.addEventListener('mousemove', rotate);
-        document.addEventListener('mouseup', () => isRotating = false);
-
-        // Handle dial rotation for touch events
-        dial.addEventListener('touchstart', initTouchRotation);
-        dial.addEventListener('touchmove', touchRotate);
-        dial.addEventListener('touchend', () => isRotating = false);
-
-        function initRotation(e) {
-            isRotating = true;
-            const rect = dial.getBoundingClientRect();
-            const center = {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-            };
-            startAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x) * (180 / Math.PI);
-        }
-
-        function initTouchRotation(e) {
-            isRotating = true;
-            const rect = dial.getBoundingClientRect();
-            const center = {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-            };
-            const touch = e.touches[0];
-            startAngle = Math.atan2(touch.clientY - center.y, touch.clientX - center.x) * (180 / Math.PI);
-            e.preventDefault();
-        }
-
-        function rotate(e) {
-            if (!isRotating) return;
-            
-            const rect = dial.getBoundingClientRect();
-            const center = {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-            };
-            
-            // Calculate the current angle in degrees
-            const currentAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x) * (180 / Math.PI);
-            
-            // Calculate the angle difference, handling the wrap-around at +/- 180 degrees
-            let angleDiff = currentAngle - startAngle;
-            if (angleDiff > 180) angleDiff -= 360;
-            if (angleDiff < -180) angleDiff += 360;
-            
-            // Make the dial more responsive by scaling the angle difference
-            const secondsChange = angleDiff * 5;
-            
-            // Calculate new value with improved precision
-            let newValue = dialValue + secondsChange;
-            
-            // Snap to 0 if very close
-            if (newValue < 15) {
-                newValue = 0;
-            } else {
-                // Round to nearest 5 seconds for smoother movement
-                newValue = Math.max(0, Math.min(900, Math.round(newValue / 5) * 5));
-            }
-            
-            // Only update if the value has changed
-            if (newValue !== dialValue) {
-                dialValue = newValue;
-                updateDialDisplay();
-                updateDialNeedle();
-                updateDialFill();
-            }
-            
-            // Reset the start angle for the next movement
-            startAngle = currentAngle;
-        }
-
-        function touchRotate(e) {
-            if (!isRotating) return;
-            
-            const rect = dial.getBoundingClientRect();
-            const center = {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-            };
-            
-            const touch = e.touches[0];
-            const currentAngle = Math.atan2(touch.clientY - center.y, touch.clientX - center.x) * (180 / Math.PI);
-            
-            let angleDiff = currentAngle - startAngle;
-            if (angleDiff > 180) angleDiff -= 360;
-            if (angleDiff < -180) angleDiff += 360;
-            
-            const secondsChange = angleDiff * 5;
-            
-            let newValue = dialValue + secondsChange;
-            
-            // Snap to 0 if very close
-            if (newValue < 15) {
-                newValue = 0;
-            } else {
-                // Round to nearest 5 seconds for smoother movement
-                newValue = Math.max(0, Math.min(900, Math.round(newValue / 5) * 5));
-            }
-            
-            if (newValue !== dialValue) {
-                dialValue = newValue;
-                updateDialDisplay();
-                updateDialNeedle();
-                updateDialFill();
-            }
-            
-            startAngle = currentAngle;
-            e.preventDefault();
-        }
-
-        function updateDialDisplay() {
-            const minutes = Math.floor(dialValue / 60);
-            const seconds = dialValue % 60;
-            // Always show two digits for minutes and seconds
-            dialDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        }
-
-        function updateDialNeedle() {
-            // Map 0-900 seconds to 0-360 degrees
-            // 900 seconds (15 minutes) = 360 degrees
-            const degrees = (dialValue / 900) * 360;
-            dialNeedle.style.transform = `translateX(-50%) rotate(${degrees}deg)`;
-        }
-
-        function updateDialFill() {
-            const fillPercentage = dialValue / 900;
-            const dialFill = document.querySelector('.dial-fill');
-            
-            if (fillPercentage <= 0) {
-                dialFill.style.background = 'transparent';
-                return;
-            }
-            
-            if (fillPercentage >= 1) {
-                dialFill.style.background = 'rgba(29, 185, 84, 0.15)';
-                dialFill.style.clipPath = 'none';
-                return;
-            }
-            
-            // Use conic-gradient for more reliable fill
-            const angle = fillPercentage * 360;
-            
-            dialFill.style.background = `conic-gradient(
-                from -90deg,
-                rgba(29, 185, 84, 0.15) 0deg ${angle}deg,
-                transparent ${angle}deg 360deg
-            )`;
-            
-            // Ensure the fill is properly clipped to a circle
-            dialFill.style.clipPath = 'none';
-        }
 
         // Handle swipe up for next video
         videoContainer.addEventListener('touchstart', function(e) {
@@ -1181,6 +1141,7 @@
             return (parseInt(hours) * 3600) + (parseInt(minutes) * 60) + parseInt(seconds);
         }
 
+        // Add click event listener to the submit button
         submitBtn.addEventListener('click', async () => {
             const interest = interestInput.value.trim();
             const errorMessage = document.querySelector('.error-message');

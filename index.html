@@ -337,13 +337,29 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
-            z-index: 2000;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
             display: none;
             flex-direction: column;
-            touch-action: pan-y;
-            overflow: hidden;
-            -webkit-overflow-scrolling: touch; /* For better iOS scrolling */
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.3s ease-out;
+        }
+
+        /* Animation for video end (TikTok-style) */
+        @keyframes slideOut {
+            0% {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+
+        .video-end-animation {
+            animation: slideOut 0.5s ease-out forwards;
         }
 
         #videoPlayer {
@@ -504,7 +520,7 @@
 
     <div class="video-container">
         <div class="close-btn" aria-label="Close video">✕</div>
-        <iframe id="videoPlayer" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" title="YouTube video player"></iframe>
+        <iframe id="videoPlayer" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" playsinline webkit-playsinline title="YouTube video player"></iframe>
         <div class="next-btn" aria-label="Next video">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M5 12H19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1121,16 +1137,41 @@
                     // Then load the video after a short delay
                     setTimeout(() => {
                         try {
-                            // For iOS, we need to use playsinline and muted for autoplay to work
-                            videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                            // Check if we're on iOS
+                            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                             
-                            // Unmute after a short delay (iOS requires initial mute for autoplay)
-                            setTimeout(() => {
-                                if (window.player && typeof window.player.unMute === 'function') {
-                                    window.player.unMute();
-                                    window.player.setVolume(100);
-                                }
-                            }, 1000);
+                            if (isIOS) {
+                                // iOS-specific approach - simpler is better for iOS
+                                console.log('Using iOS-specific video loading approach');
+                                
+                                // Clear any existing content
+                                videoPlayer.src = '';
+                                
+                                // Set attributes first
+                                videoPlayer.setAttribute('playsinline', '');
+                                videoPlayer.setAttribute('webkit-playsinline', '');
+                                videoPlayer.setAttribute('allow', 'autoplay; encrypted-media');
+                                
+                                // Then set the source with all required parameters
+                                videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                                
+                                // iOS sometimes needs a manual trigger
+                                setTimeout(() => {
+                                    try {
+                                        // Try to trigger play manually
+                                        const iframeDoc = videoPlayer.contentDocument || videoPlayer.contentWindow.document;
+                                        const videoElement = iframeDoc.querySelector('video');
+                                        if (videoElement) {
+                                            videoElement.play();
+                                        }
+                                    } catch (e) {
+                                        console.log('Could not access iframe content:', e);
+                                    }
+                                }, 500);
+                            } else {
+                                // Standard approach for other platforms
+                                videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                            }
                             
                             errorMessage.style.display = 'none';
                             
@@ -1144,9 +1185,10 @@
                             setTimeout(addVideoEndCheck, 2000);
                         } catch (error) {
                             console.error('Error loading video:', error);
-                            setupVideoEndFallback(); // Use fallback if there's an error
+                            errorMessage.textContent = 'Error loading video. Please try again.';
+                            errorMessage.style.display = 'block';
                         }
-                    }, 300);
+                    }, 500);
                 } else {
                     throw new Error('No suitable videos found. Please try a different interest.');
                 }
@@ -1386,18 +1428,22 @@
                     };
                 }
                 
+                // Special handling for iOS
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const playerVars = {
+                    'autoplay': 1,
+                    'playsinline': 1,
+                    'controls': 1,
+                    'rel': 0,
+                    'fs': 0,
+                    'modestbranding': 1,
+                    'mute': 1, // Start muted for iOS autoplay
+                    'origin': window.location.origin
+                };
+                
                 window.player = new YT.Player('videoPlayer', {
                     videoId: videoId,
-                    playerVars: {
-                        'autoplay': 1,
-                        'playsinline': 1,
-                        'controls': 1,
-                        'rel': 0,
-                        'fs': 0,
-                        'modestbranding': 1,
-                        'mute': 1, // Start muted for iOS autoplay
-                        'origin': window.location.origin
-                    },
+                    playerVars: playerVars,
                     events: {
                         'onReady': onPlayerReady,
                         'onStateChange': onPlayerStateChange,
@@ -1456,63 +1502,68 @@
             }
         }
 
-        // Add a manual check for video end in case the event doesn't fire
+        // Function to manually check if video has ended
         function addVideoEndCheck() {
-            if (window.player && typeof window.player.getCurrentTime === 'function') {
-                let lastTime = 0;
-                let stuckCounter = 0;
-                
-                const checkInterval = setInterval(() => {
-                    try {
-                        if (!window.player || typeof window.player.getCurrentTime !== 'function') {
-                            clearInterval(checkInterval);
-                            return;
-                        }
-                        
-                        const currentTime = window.player.getCurrentTime();
-                        const duration = window.player.getDuration();
-                        
-                        // If we're near the end of the video (within 1.5 seconds)
-                        if (duration > 0 && currentTime > 0 && (duration - currentTime < 1.5)) {
-                            console.log('Video near end detected by time check');
-                            clearInterval(checkInterval);
-                            getNextVideo();
-                        }
-                        
-                        // Check if video is stuck (time not advancing)
-                        if (currentTime === lastTime) {
-                            stuckCounter++;
-                            if (stuckCounter > 5 && currentTime > 0 && duration > 0 && (duration - currentTime < 5)) {
-                                // Video might be stuck near the end
-                                console.log('Video appears stuck near end, advancing to next');
-                                clearInterval(checkInterval);
-                                getNextVideo();
-                            }
-                        } else {
-                            stuckCounter = 0;
-                        }
-                        
-                        lastTime = currentTime;
-                    } catch (e) {
-                        console.error('Error in video end check:', e);
+            console.log('Setting up manual video end check');
+            let checkInterval;
+            let startTime = Date.now();
+            
+            // Check every second if the video has ended or if we can't access it
+            checkInterval = setInterval(() => {
+                try {
+                    const iframe = document.getElementById('videoPlayer');
+                    if (!iframe) {
                         clearInterval(checkInterval);
+                        return;
                     }
-                }, 1000);
-                
-                // Clear interval when video container is hidden
-                const observer = new MutationObserver((mutations) => {
-                    mutations.forEach((mutation) => {
-                        if (mutation.target === videoContainer && 
-                            mutation.attributeName === 'style' && 
-                            videoContainer.style.display === 'none') {
+                    
+                    // Try to access the video element inside the iframe
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const videoElement = iframeDoc.querySelector('video');
+                    
+                    // If we can access the video element, check if it's ended
+                    if (videoElement) {
+                        if (videoElement.ended || videoElement.currentTime >= videoElement.duration * 0.95) {
+                            console.log('Video ended detected by manual check');
                             clearInterval(checkInterval);
-                            observer.disconnect();
+                            handleVideoEnd();
                         }
-                    });
-                });
-                
-                observer.observe(videoContainer, { attributes: true });
-            }
+                    } else {
+                        // If we can't access the video element, check if enough time has passed
+                        // Most videos are 15-60 seconds, so after 60 seconds we'll assume it's done
+                        const elapsedTime = (Date.now() - startTime) / 1000;
+                        if (elapsedTime > 60) {
+                            console.log('Video likely ended (timeout after 60s)');
+                            clearInterval(checkInterval);
+                            handleVideoEnd();
+                        }
+                    }
+                } catch (e) {
+                    console.log('Error in video end check:', e);
+                    // If we can't access the iframe content due to cross-origin restrictions,
+                    // we'll rely on a timeout approach
+                    const elapsedTime = (Date.now() - startTime) / 1000;
+                    if (elapsedTime > 60) {
+                        console.log('Video likely ended (timeout after 60s)');
+                        clearInterval(checkInterval);
+                        handleVideoEnd();
+                    }
+                }
+            }, 1000);
+        }
+        
+        // Function to handle video end
+        function handleVideoEnd() {
+            console.log('Handling video end');
+            // Add the animation class to trigger the TikTok-style animation
+            videoContainer.classList.add('video-end-animation');
+            
+            // After animation completes, reset and load next video
+            setTimeout(() => {
+                videoContainer.classList.remove('video-end-animation');
+                closeVideo();
+                findVideo();
+            }, 500);
         }
 
         // Add click event listener to the submit button

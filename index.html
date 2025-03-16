@@ -864,52 +864,54 @@
 
         // Update the video container touch handling for better iOS compatibility
         videoContainer.addEventListener('touchstart', function(e) {
+            console.log('Touch start detected');
             touchStartY = e.changedTouches[0].screenY;
             swipeStartTime = Date.now();
-            
-            // Don't call preventDefault here to allow normal touch interactions
-            // This is important for iOS
         }, { passive: true });
 
         videoContainer.addEventListener('touchmove', function(e) {
             const touch = e.changedTouches[0];
             const deltaY = touchStartY - touch.screenY;
             
-            // Make swipe detection more sensitive, especially for iOS
-            if (Math.abs(deltaY) > 5) {  // Reduced threshold from previous value
+            console.log('Touch move detected, deltaY:', deltaY);
+            
+            // Make swipe detection extremely sensitive for iOS
+            if (Math.abs(deltaY) > 2) {  // Extremely low threshold
                 const translateY = Math.min(deltaY * 0.8, window.innerHeight * 0.3);
                 videoContainer.style.transform = `translateY(-${translateY}px)`;
                 
                 // Only prevent default if we're actually handling the swipe
-                if (Math.abs(deltaY) > 10) {
+                if (Math.abs(deltaY) > 5) {
                     e.preventDefault();
                 }
             }
         }, { passive: false });
         
         videoContainer.addEventListener('touchend', function(e) {
+            console.log('Touch end detected');
             touchEndY = e.changedTouches[0].screenY;
             const swipeDistance = touchStartY - touchEndY;
             const swipeTime = Date.now() - swipeStartTime;
             const swipeVelocity = Math.abs(swipeDistance) / swipeTime;
             
-            // Make swipe detection much more sensitive on iOS
-            // Significantly reduced threshold for iOS
+            // Make swipe detection extremely sensitive on iOS
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            const swipeThresholdForDevice = isIOS ? 20 : swipeThreshold;
-            const velocityThresholdForDevice = isIOS ? 0.1 : velocityThreshold;
+            const swipeThresholdForDevice = isIOS ? 10 : swipeThreshold; // Even lower threshold
+            const velocityThresholdForDevice = isIOS ? 0.05 : velocityThreshold; // Lower velocity threshold
             
             const isValidSwipe = swipeDistance > swipeThresholdForDevice || 
-                               (swipeDistance > 10 && swipeVelocity > velocityThresholdForDevice);
+                               (swipeDistance > 5 && swipeVelocity > velocityThresholdForDevice);
             
             console.log('Swipe data:', {
                 distance: swipeDistance,
                 time: swipeTime,
                 velocity: swipeVelocity,
-                isValid: isValidSwipe
+                isValid: isValidSwipe,
+                isIOS: isIOS
             });
             
             if (isValidSwipe) {
+                console.log('Valid swipe detected, loading next video');
                 // TikTok-style animation - slide up and out
                 videoContainer.style.transition = 'transform 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
                 videoContainer.style.transform = 'translateY(-100%)';
@@ -918,7 +920,9 @@
                 setTimeout(() => {
                     videoContainer.style.transition = 'none';
                     videoContainer.style.transform = 'translateY(0)';
-                    getNextVideo();
+                    if (currentInterest) {
+                        fetchVideo(currentInterest, false);
+                    }
                 }, 400);
             } else {
                 // Snap back if not a valid swipe
@@ -968,19 +972,33 @@
 
         // Next video button
         nextBtn.addEventListener('click', function() {
+            console.log('Next button clicked');
             // Clear the current video first
             videoPlayer.src = '';
             // Add a small delay before loading the next video
-            setTimeout(getNextVideo, 100);
+            setTimeout(function() {
+                console.log('Loading next video');
+                if (currentInterest) {
+                    // Don't reset progress bar when getting next video
+                    fetchVideo(currentInterest, false);
+                }
+            }, 100);
         });
         
         // Add touchend event for better iOS button response
         nextBtn.addEventListener('touchend', function(e) {
+            console.log('Next button touched');
             e.preventDefault();
             // Clear the current video first
             videoPlayer.src = '';
             // Add a small delay before loading the next video
-            setTimeout(getNextVideo, 100);
+            setTimeout(function() {
+                console.log('Loading next video after touch');
+                if (currentInterest) {
+                    // Don't reset progress bar when getting next video
+                    fetchVideo(currentInterest, false);
+                }
+            }, 100);
         });
 
         // Function to handle orientation changes specifically for iOS
@@ -1177,7 +1195,7 @@
                                 videoPlayer.setAttribute('allow', 'autoplay; encrypted-media');
                                 
                                 // For iOS, we need to use a direct approach
-                                const videoUrl = `https://www.youtube.com/embed/${video.id}?autoplay=1&playsinline=1&mute=1&controls=1&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&fs=0`;
+                                const videoUrl = `https://www.youtube.com/embed/${video.id}?autoplay=1&playsinline=1&mute=0&controls=1&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&fs=0`;
                                 
                                 // Set the source with all required parameters
                                 videoPlayer.src = videoUrl;
@@ -1189,32 +1207,30 @@
                                         const currentSrc = videoPlayer.src;
                                         videoPlayer.src = '';
                                         setTimeout(() => {
-                                            videoPlayer.src = currentSrc;
-                                        }, 50);
-                                        
-                                        // Try to trigger play manually
-                                        setTimeout(() => {
-                                            try {
-                                                const iframeDoc = videoPlayer.contentDocument || videoPlayer.contentWindow.document;
-                                                const videoElement = iframeDoc.querySelector('video');
-                                                if (videoElement) {
-                                                    // Try to play the video directly
-                                                    const playPromise = videoElement.play();
-                                                    if (playPromise !== undefined) {
-                                                        playPromise.catch(error => {
-                                                            console.log('Play was prevented:', error);
-                                                            // Try again with user interaction simulation
-                                                            document.addEventListener('touchend', function playVideoOnce() {
-                                                                videoElement.play();
-                                                                document.removeEventListener('touchend', playVideoOnce);
-                                                            }, { once: true });
-                                                        });
+                                            // Add unmute parameter explicitly
+                                            videoPlayer.src = currentSrc.replace('mute=0', 'mute=0');
+                                            
+                                            // Add a click handler to unmute after user interaction
+                                            const unmuteHandler = function() {
+                                                try {
+                                                    // Try to access the iframe and unmute
+                                                    const iframe = document.getElementById('videoPlayer');
+                                                    if (iframe) {
+                                                        // Send a postMessage to unmute
+                                                        iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
                                                     }
+                                                } catch (e) {
+                                                    console.log('Error in unmute handler:', e);
                                                 }
-                                            } catch (e) {
-                                                console.log('Could not access iframe content:', e);
-                                            }
-                                        }, 500);
+                                                // Remove this handler after first click
+                                                document.removeEventListener('click', unmuteHandler);
+                                                document.removeEventListener('touchend', unmuteHandler);
+                                            };
+                                            
+                                            // Add listeners for both click and touch events
+                                            document.addEventListener('click', unmuteHandler);
+                                            document.addEventListener('touchend', unmuteHandler);
+                                        }, 50);
                                     } catch (e) {
                                         console.log('Error reloading iframe:', e);
                                     }
@@ -1313,6 +1329,12 @@
                 const searchData = await searchResponse.json();
                 
                 if (!searchResponse.ok) {
+                    // Check if we hit the quota limit
+                    if (searchData.error && searchData.error.message && 
+                        searchData.error.message.includes('quota')) {
+                        console.log('YouTube API quota exceeded, using fallback method');
+                        return await fallbackVideoSearch(query, isPortrait);
+                    }
                     throw new Error(searchData.error?.message || 'YouTube API error');
                 }
                 
@@ -1329,6 +1351,12 @@
                 const detailsData = await detailsResponse.json();
                 
                 if (!detailsResponse.ok) {
+                    // Check if we hit the quota limit
+                    if (detailsData.error && detailsData.error.message && 
+                        detailsData.error.message.includes('quota')) {
+                        console.log('YouTube API quota exceeded, using fallback method');
+                        return await fallbackVideoSearch(query, isPortrait);
+                    }
                     throw new Error(detailsData.error?.message || 'YouTube API error');
                 }
                 
@@ -1699,6 +1727,66 @@
                 loadingSpinner.style.display = 'none';
             }
         });
+
+        // Fallback method when YouTube API quota is exceeded
+        async function fallbackVideoSearch(query, isPortrait) {
+            console.log('Using fallback video search for query:', query);
+            
+            // Predefined video IDs for different categories
+            const videoCategories = {
+                dogs: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654'],
+                cats: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ'],
+                cooking: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM'],
+                science: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY'],
+                travel: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s'],
+                music: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0'],
+                gaming: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E'],
+                sports: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A'],
+                comedy: ['VDvr08sCPOc', 'dQw4w9WgXcQ', 'ZZ5LpwO-An4', 'astISOttCQ0', 'feA64wXhbjo'],
+                education: ['Uy8_FdUdgtk', 'rYEDA3JcQqw', 'fWNaR-rxAic', 'y6120QOlsfU', 'OPf0YbXqDm0'],
+                shorts: ['60ItHLz5WEA', 'fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo']
+            };
+            
+            // Find the best matching category
+            let bestCategory = 'dogs'; // Default
+            let bestScore = 0;
+            
+            for (const category in videoCategories) {
+                // Simple matching algorithm - count occurrences of category name in query
+                const regex = new RegExp(category, 'gi');
+                const matches = (query.match(regex) || []).length;
+                
+                if (matches > bestScore) {
+                    bestScore = matches;
+                    bestCategory = category;
+                }
+            }
+            
+            // If in portrait mode, prefer shorts
+            if (isPortrait) {
+                bestCategory = 'shorts';
+            }
+            
+            // Get videos for the best matching category
+            const videos = videoCategories[bestCategory] || videoCategories.dogs;
+            
+            // Pick a random video from the category
+            const randomIndex = Math.floor(Math.random() * videos.length);
+            const videoId = videos[randomIndex];
+            
+            console.log('Selected fallback video ID:', videoId, 'from category:', bestCategory);
+            
+            // Return a simplified video object
+            return {
+                id: videoId,
+                title: 'Video about ' + bestCategory,
+                channelTitle: 'Fallback Channel',
+                duration: 60, // Assume 60 seconds
+                viewCount: 1000000,
+                relevanceScore: 1,
+                language: 'en'
+            };
+        }
     </script>
 </body>
 </html>

@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; frame-src https://www.youtube.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.googleapis.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com; frame-src https://www.youtube.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.googleapis.com;">
     <title>Killtime</title>
     <style>
         :root {
@@ -375,6 +375,10 @@
             justify-content: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             z-index: 2001;
+            /* iOS improvements */
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
+            touch-action: manipulation;
+            cursor: pointer;
         }
 
         .close-btn {
@@ -391,6 +395,9 @@
             justify-content: center;
             z-index: 2010; /* Increased z-index to ensure it's above other elements */
             cursor: pointer; /* Add cursor pointer to indicate it's clickable */
+            /* iOS improvements */
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
+            touch-action: manipulation;
         }
 
         .api-key-modal {
@@ -834,32 +841,41 @@
         let swipeThreshold = 80; // Pixels to trigger a swipe
         let velocityThreshold = 0.3; // Pixels per millisecond
 
-        // Handle swipe up for next video - TikTok style
+        // Add these iOS compatibility improvements right after the videoContainer event listeners
+        videoPlayer.setAttribute('playsinline', '');
+        videoPlayer.setAttribute('webkit-playsinline', '');
+        videoPlayer.setAttribute('muted', 'muted');
+
+        // Update the video container touch handling for better iOS compatibility
         videoContainer.addEventListener('touchstart', function(e) {
             touchStartY = e.changedTouches[0].screenY;
             swipeStartTime = Date.now();
-            e.preventDefault();
-        }, { passive: false });
+            
+            // Don't call preventDefault here to allow normal touch interactions
+            // This is important for iOS
+        }, { passive: true });
 
         videoContainer.addEventListener('touchmove', function(e) {
-            e.preventDefault();
             const touch = e.changedTouches[0];
             const deltaY = touchStartY - touch.screenY;
             
             if (deltaY > 0) {
                 const translateY = Math.min(deltaY * 0.5, window.innerHeight * 0.3);
                 videoContainer.style.transform = `translateY(-${translateY}px)`;
+                
+                // Only prevent default if we're actually handling the swipe
+                e.preventDefault();
             }
         }, { passive: false });
-
+        
         videoContainer.addEventListener('touchend', function(e) {
             touchEndY = e.changedTouches[0].screenY;
             const swipeDistance = touchStartY - touchEndY;
             const swipeTime = Date.now() - swipeStartTime;
             const swipeVelocity = Math.abs(swipeDistance) / swipeTime;
             
-            // Check if it's a valid swipe up (distance or velocity based)
-            const isValidSwipe = swipeDistance > swipeThreshold || (swipeDistance > 30 && swipeVelocity > velocityThreshold);
+            // Make swipe detection more sensitive on iOS
+            const isValidSwipe = swipeDistance > (swipeThreshold * 0.7) || (swipeDistance > 20 && swipeVelocity > velocityThreshold);
             
             if (isValidSwipe) {
                 // TikTok-style animation - slide up and out
@@ -877,7 +893,7 @@
                 videoContainer.style.transition = 'transform 0.2s ease-out';
                 videoContainer.style.transform = 'translateY(0)';
             }
-        }, { passive: false });
+        }, { passive: true });
 
         // Prevent default on touchmove for the entire document to disable scrolling
         document.addEventListener('touchmove', function(e) {
@@ -912,8 +928,20 @@
             }
         });
 
+        // Add touchend event for better iOS button response
+        closeBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            closeBtn.click();
+        });
+
         // Next video button
         nextBtn.addEventListener('click', getNextVideo);
+        
+        // Add touchend event for better iOS button response
+        nextBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            nextBtn.click();
+        });
 
         // Function to handle orientation changes specifically for iOS
         function handleIOSOrientationChange() {
@@ -1094,7 +1122,15 @@
                     setTimeout(() => {
                         try {
                             // For iOS, we need to use playsinline and muted for autoplay to work
-                            videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=0&controls=1`;
+                            videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                            
+                            // Unmute after a short delay (iOS requires initial mute for autoplay)
+                            setTimeout(() => {
+                                if (window.player && typeof window.player.unMute === 'function') {
+                                    window.player.unMute();
+                                    window.player.setVolume(100);
+                                }
+                            }, 1000);
                             
                             errorMessage.style.display = 'none';
                             
@@ -1330,6 +1366,9 @@
                     newIframe.allowFullscreen = true;
                     newIframe.allow = 'autoplay; encrypted-media';
                     newIframe.title = 'YouTube video player';
+                    // Add iOS-specific attributes
+                    newIframe.setAttribute('playsinline', '');
+                    newIframe.setAttribute('webkit-playsinline', '');
                     iframeElement.parentNode.replaceChild(newIframe, iframeElement);
                 }
                 
@@ -1355,7 +1394,9 @@
                         'controls': 1,
                         'rel': 0,
                         'fs': 0,
-                        'modestbranding': 1
+                        'modestbranding': 1,
+                        'mute': 1, // Start muted for iOS autoplay
+                        'origin': window.location.origin
                     },
                     events: {
                         'onReady': onPlayerReady,
@@ -1370,7 +1411,10 @@
                 // Direct iframe approach as fallback
                 const iframeElement = document.getElementById('videoPlayer');
                 if (iframeElement && iframeElement.tagName === 'IFRAME') {
-                    iframeElement.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&controls=1`;
+                    iframeElement.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                    // Add iOS-specific attributes directly
+                    iframeElement.setAttribute('playsinline', '');
+                    iframeElement.setAttribute('webkit-playsinline', '');
                 }
             }
         }
@@ -1379,6 +1423,16 @@
         function onPlayerReady(event) {
             console.log('YouTube player ready');
             event.target.playVideo();
+            
+            // Unmute after a short delay (for iOS)
+            setTimeout(() => {
+                try {
+                    event.target.unMute();
+                    event.target.setVolume(100);
+                } catch (e) {
+                    console.error('Error unmuting:', e);
+                }
+            }, 1000);
         }
 
         // Handle player errors
@@ -1502,29 +1556,6 @@
                 loadingSpinner.style.display = 'none';
             }
         });
-
-        // Add these iOS compatibility improvements right after the videoContainer event listeners
-        videoPlayer.setAttribute('playsinline', '');
-        videoPlayer.setAttribute('webkit-playsinline', '');
-        videoPlayer.setAttribute('muted', 'muted');
-
-        // Update the video container touch handling
-        videoContainer.addEventListener('touchstart', function(e) {
-            touchStartY = e.changedTouches[0].screenY;
-            swipeStartTime = Date.now();
-            e.preventDefault();
-        }, { passive: false });
-
-        videoContainer.addEventListener('touchmove', function(e) {
-            e.preventDefault();
-            const touch = e.changedTouches[0];
-            const deltaY = touchStartY - touch.screenY;
-            
-            if (deltaY > 0) {
-                const translateY = Math.min(deltaY * 0.5, window.innerHeight * 0.3);
-                videoContainer.style.transform = `translateY(-${translateY}px)`;
-            }
-        }, { passive: false });
     </script>
 </body>
 </html>

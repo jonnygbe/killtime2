@@ -875,12 +875,15 @@
             const touch = e.changedTouches[0];
             const deltaY = touchStartY - touch.screenY;
             
-            if (deltaY > 0) {
-                const translateY = Math.min(deltaY * 0.5, window.innerHeight * 0.3);
+            // Make swipe detection more sensitive, especially for iOS
+            if (Math.abs(deltaY) > 5) {  // Reduced threshold from previous value
+                const translateY = Math.min(deltaY * 0.8, window.innerHeight * 0.3);
                 videoContainer.style.transform = `translateY(-${translateY}px)`;
                 
                 // Only prevent default if we're actually handling the swipe
-                e.preventDefault();
+                if (Math.abs(deltaY) > 10) {
+                    e.preventDefault();
+                }
             }
         }, { passive: false });
         
@@ -890,8 +893,21 @@
             const swipeTime = Date.now() - swipeStartTime;
             const swipeVelocity = Math.abs(swipeDistance) / swipeTime;
             
-            // Make swipe detection more sensitive on iOS
-            const isValidSwipe = swipeDistance > (swipeThreshold * 0.7) || (swipeDistance > 20 && swipeVelocity > velocityThreshold);
+            // Make swipe detection much more sensitive on iOS
+            // Significantly reduced threshold for iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const swipeThresholdForDevice = isIOS ? 20 : swipeThreshold;
+            const velocityThresholdForDevice = isIOS ? 0.1 : velocityThreshold;
+            
+            const isValidSwipe = swipeDistance > swipeThresholdForDevice || 
+                               (swipeDistance > 10 && swipeVelocity > velocityThresholdForDevice);
+            
+            console.log('Swipe data:', {
+                distance: swipeDistance,
+                time: swipeTime,
+                velocity: swipeVelocity,
+                isValid: isValidSwipe
+            });
             
             if (isValidSwipe) {
                 // TikTok-style animation - slide up and out
@@ -951,12 +967,20 @@
         });
 
         // Next video button
-        nextBtn.addEventListener('click', getNextVideo);
+        nextBtn.addEventListener('click', function() {
+            // Clear the current video first
+            videoPlayer.src = '';
+            // Add a small delay before loading the next video
+            setTimeout(getNextVideo, 100);
+        });
         
         // Add touchend event for better iOS button response
         nextBtn.addEventListener('touchend', function(e) {
             e.preventDefault();
-            nextBtn.click();
+            // Clear the current video first
+            videoPlayer.src = '';
+            // Add a small delay before loading the next video
+            setTimeout(getNextVideo, 100);
         });
 
         // Function to handle orientation changes specifically for iOS
@@ -1147,27 +1171,54 @@
                                 // Clear any existing content
                                 videoPlayer.src = '';
                                 
-                                // Set attributes first
+                                // Set attributes first - these are critical for iOS
                                 videoPlayer.setAttribute('playsinline', '');
                                 videoPlayer.setAttribute('webkit-playsinline', '');
                                 videoPlayer.setAttribute('allow', 'autoplay; encrypted-media');
                                 
-                                // Then set the source with all required parameters
-                                videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                                // For iOS, we need to use a direct approach
+                                const videoUrl = `https://www.youtube.com/embed/${video.id}?autoplay=1&playsinline=1&mute=1&controls=1&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&fs=0`;
                                 
-                                // iOS sometimes needs a manual trigger
+                                // Set the source with all required parameters
+                                videoPlayer.src = videoUrl;
+                                
+                                // Force reload the iframe
                                 setTimeout(() => {
                                     try {
+                                        // Try to reload the iframe
+                                        const currentSrc = videoPlayer.src;
+                                        videoPlayer.src = '';
+                                        setTimeout(() => {
+                                            videoPlayer.src = currentSrc;
+                                        }, 50);
+                                        
                                         // Try to trigger play manually
-                                        const iframeDoc = videoPlayer.contentDocument || videoPlayer.contentWindow.document;
-                                        const videoElement = iframeDoc.querySelector('video');
-                                        if (videoElement) {
-                                            videoElement.play();
-                                        }
+                                        setTimeout(() => {
+                                            try {
+                                                const iframeDoc = videoPlayer.contentDocument || videoPlayer.contentWindow.document;
+                                                const videoElement = iframeDoc.querySelector('video');
+                                                if (videoElement) {
+                                                    // Try to play the video directly
+                                                    const playPromise = videoElement.play();
+                                                    if (playPromise !== undefined) {
+                                                        playPromise.catch(error => {
+                                                            console.log('Play was prevented:', error);
+                                                            // Try again with user interaction simulation
+                                                            document.addEventListener('touchend', function playVideoOnce() {
+                                                                videoElement.play();
+                                                                document.removeEventListener('touchend', playVideoOnce);
+                                                            }, { once: true });
+                                                        });
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                console.log('Could not access iframe content:', e);
+                                            }
+                                        }, 500);
                                     } catch (e) {
-                                        console.log('Could not access iframe content:', e);
+                                        console.log('Error reloading iframe:', e);
                                     }
-                                }, 500);
+                                }, 100);
                             } else {
                                 // Standard approach for other platforms
                                 videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
@@ -1208,24 +1259,56 @@
         async function createSearchQuery(interest) {
             // For simplicity, we'll just add some keywords to make the search more specific
             const minutes = Math.floor(dialValue / 60);
-            const keywords = [
+            
+            // Check if device is in portrait mode
+            const isPortrait = window.innerHeight > window.innerWidth;
+            
+            // Keywords for regular videos
+            const regularKeywords = [
                 'guide', 'tutorial', 'how to', 'explanation', 'tips', 
                 'facts about', 'information', 'learn about'
             ];
             
+            // Keywords for vertical/short videos
+            const verticalKeywords = [
+                'shorts', 'tiktok', 'vertical video', 'short form', 'reels'
+            ];
+            
+            // Choose keywords based on orientation
+            const keywordsArray = isPortrait ? verticalKeywords : regularKeywords;
+            
             // Pick a random keyword to combine with the interest
-            const randomKeyword = keywords[Math.floor(Math.random() * keywords.length)];
+            const randomKeyword = keywordsArray[Math.floor(Math.random() * keywordsArray.length)];
             
             // Create query with minutes but without explicitly mentioning "english"
             // The relevanceLanguage parameter in the API call will handle language filtering
-            return `${interest} ${randomKeyword} ${minutes} minutes`;
+            let query = `${interest} ${randomKeyword}`;
+            
+            // Add duration hint for regular videos, but not for shorts
+            if (!isPortrait) {
+                query += ` ${minutes} minutes`;
+            }
+            
+            console.log('Search query:', query, 'isPortrait:', isPortrait);
+            
+            return query;
         }
         
         // Search YouTube directly
         async function searchYouTube(query, apiKey, targetDuration) {
             try {
+                // Check if device is in portrait mode
+                const isPortrait = window.innerHeight > window.innerWidth;
+                
                 // First, search for videos matching the query
-                const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoEmbeddable=true&videoSyndicated=true&maxResults=20&relevanceLanguage=en&key=${apiKey}`;
+                let searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoEmbeddable=true&videoSyndicated=true&maxResults=20&relevanceLanguage=en&key=${apiKey}`;
+                
+                // For portrait mode, prioritize short videos
+                if (isPortrait) {
+                    // Add videoDuration=short parameter to find shorter videos
+                    searchUrl += '&videoDuration=short';
+                }
+                
                 const searchResponse = await fetch(searchUrl);
                 const searchData = await searchResponse.json();
                 
@@ -1251,15 +1334,24 @@
                 
                 // Combine search results with video details and filter for embeddable videos
                 const videos = [];
+                
                 searchData.items.forEach(searchItem => {
                     const videoDetails = detailsData.items.find(item => item.id === searchItem.id.videoId);
                     
                     if (videoDetails && videoDetails.status.embeddable !== false) {
                         const duration = parseDuration(videoDetails.contentDetails.duration);
                         
-                        // Skip videos longer than the selected time
-                        if (duration > targetDuration) {
-                            return;
+                        // Different duration handling based on orientation
+                        if (isPortrait) {
+                            // For portrait mode, prefer shorter videos (under 60 seconds)
+                            if (duration > 60) {
+                                return;
+                            }
+                        } else {
+                            // For landscape mode, respect the selected time
+                            if (duration > targetDuration) {
+                                return;
+                            }
                         }
                         
                         // Check if video is in English (either by snippet.defaultAudioLanguage or defaultLanguage)

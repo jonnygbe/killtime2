@@ -1560,6 +1560,8 @@
                 return;
             }
             
+            console.log('Displaying video:', video.id);
+            
             // First show black screen and progress bar
             videoContainer.style.display = 'flex';
             
@@ -1576,12 +1578,15 @@
                     // Check if we're on iOS
                     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                     
+                    // Clear any existing content first
+                    videoPlayer.src = '';
+                    
+                    // Force a reflow to ensure the iframe is properly reset
+                    void videoPlayer.offsetHeight;
+                    
                     if (isIOS) {
                         // iOS-specific approach - simpler is better for iOS
-                        console.log('Using iOS-specific video loading approach');
-                        
-                        // Clear any existing content
-                        videoPlayer.src = '';
+                        console.log('Using iOS-specific video loading approach for:', video.id);
                         
                         // Set attributes first - these are critical for iOS
                         videoPlayer.setAttribute('playsinline', '');
@@ -1606,9 +1611,13 @@
                                 // Try to reload the iframe
                                 const currentSrc = videoPlayer.src;
                                 videoPlayer.src = '';
+                                
+                                // Force a reflow
+                                void videoPlayer.offsetHeight;
+                                
                                 setTimeout(() => {
                                     // Add unmute parameter explicitly
-                                    videoPlayer.src = currentSrc.replace('mute=0', 'mute=0');
+                                    videoPlayer.src = currentSrc;
                                     
                                     // Add a click handler to unmute after user interaction
                                     const unmuteHandler = function() {
@@ -1630,15 +1639,17 @@
                                     // Add listeners for both click and touch events
                                     document.addEventListener('click', unmuteHandler);
                                     document.addEventListener('touchend', unmuteHandler);
-                                }, 50);
+                                }, 100);
                             } catch (e) {
                                 console.log('Error reloading iframe:', e);
                                 handleVideoError();
                             }
-                        }, 100);
+                        }, 200);
                     } else {
                         // Standard approach for other platforms
-                        videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                        console.log('Using standard video loading approach for:', video.id);
+                        const videoUrl = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                        videoPlayer.src = videoUrl;
                         
                         // Add error handling for iframe load errors
                         videoPlayer.onerror = function() {
@@ -1696,11 +1707,39 @@
             errorMessage.textContent = 'Video unavailable. Loading another video...';
             errorMessage.style.display = 'block';
             
-            // Hide the error message after 2 seconds
+            // Clear the current video
+            try {
+                videoPlayer.src = '';
+                // Force a reflow
+                void videoPlayer.offsetHeight;
+            } catch (e) {
+                console.error('Error clearing video player:', e);
+            }
+            
+            // Hide the error message after a short delay
             setTimeout(() => {
                 errorMessage.style.display = 'none';
+                
                 // Try to load the next video
-                loadNextVideo();
+                if (videoQueue.length > 0) {
+                    console.log('Loading next video from queue after error');
+                    const nextVideo = videoQueue.shift();
+                    displayVideo(nextVideo, false);
+                    
+                    // Refill the queue if needed
+                    if (videoQueue.length < 2 && currentInterest) {
+                        fillVideoQueue(currentInterest);
+                    }
+                } else if (currentInterest) {
+                    console.log('Fetching new video after error');
+                    // Use getFallbackVideo directly to avoid potential API errors
+                    const isPortrait = window.innerHeight > window.innerWidth;
+                    const fallbackVideo = getFallbackVideo(currentInterest, isPortrait, dialValue);
+                    displayVideo(fallbackVideo, false);
+                    
+                    // Start refilling the queue
+                    fillVideoQueue(currentInterest);
+                }
             }, 2000);
         }
 
@@ -1999,15 +2038,47 @@
                 
                 // Add videos to the queue
                 for (let i = 0; i < videosToAdd; i++) {
-                    const video = await searchVideosWithOpenAI(searchQuery, isPortrait, dialValue);
-                    if (video && video.id) {
-                        videoQueue.push(video);
+                    try {
+                        // Use a mix of OpenAI and fallback videos for reliability
+                        let video;
+                        if (i % 2 === 0) {
+                            // Use fallback for even indices (more reliable)
+                            video = getFallbackVideo(searchQuery, isPortrait, dialValue);
+                        } else {
+                            // Try OpenAI for odd indices
+                            video = await searchVideosWithOpenAI(searchQuery, isPortrait, dialValue);
+                        }
+                        
+                        if (video && video.id) {
+                            // Check if this video ID is already in the queue
+                            const isDuplicate = videoQueue.some(v => v.id === video.id);
+                            if (!isDuplicate) {
+                                videoQueue.push(video);
+                            } else {
+                                // If duplicate, get a fallback video instead
+                                const fallbackVideo = getFallbackVideo(searchQuery, isPortrait, dialValue);
+                                videoQueue.push(fallbackVideo);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error adding video to queue:', error);
+                        // Add a fallback video on error
+                        const fallbackVideo = getFallbackVideo(searchQuery, isPortrait, dialValue);
+                        videoQueue.push(fallbackVideo);
                     }
                 }
                 
                 console.log(`Added ${videosToAdd} videos to queue. Queue size: ${videoQueue.length}`);
             } catch (error) {
                 console.error('Error filling video queue:', error);
+                // Add at least one fallback video on error
+                try {
+                    const isPortrait = window.innerHeight > window.innerWidth;
+                    const fallbackVideo = getFallbackVideo(interest, isPortrait, dialValue);
+                    videoQueue.push(fallbackVideo);
+                } catch (e) {
+                    console.error('Critical error adding fallback video:', e);
+                }
             }
         }
 
@@ -2026,27 +2097,45 @@
             
             // Add a small delay before loading the next video
             setTimeout(function() {
-                if (videoQueue.length > 0) {
-                    // Get the next video from the queue
-                    const nextVideo = videoQueue.shift();
-                    
-                    // Display the video
-                    displayVideo(nextVideo, false);
-                    
-                    // Refill the queue if it's getting low
-                    if (videoQueue.length < 2 && currentInterest) {
-                        fillVideoQueue(currentInterest);
+                try {
+                    if (videoQueue.length > 0) {
+                        // Get the next video from the queue
+                        const nextVideo = videoQueue.shift();
+                        console.log('Loading next video from queue:', nextVideo.id);
+                        
+                        // Display the video
+                        displayVideo(nextVideo, false);
+                        
+                        // Refill the queue if it's getting low
+                        if (videoQueue.length < 2 && currentInterest) {
+                            fillVideoQueue(currentInterest);
+                        }
+                    } else if (currentInterest) {
+                        // If queue is empty, fetch a new video
+                        console.log('Queue empty, fetching new video for:', currentInterest);
+                        fetchVideo(currentInterest, false);
+                    } else {
+                        console.error('No current interest set, cannot load next video');
+                        const errorMessage = document.querySelector('.error-message');
+                        errorMessage.textContent = 'Please enter your interests to find videos';
+                        errorMessage.style.display = 'block';
                     }
-                } else if (currentInterest) {
-                    // If queue is empty, fetch a new video
-                    fetchVideo(currentInterest, false);
+                } catch (error) {
+                    console.error('Error in loadNextVideo:', error);
+                    // Try to recover by fetching a new video directly
+                    if (currentInterest) {
+                        setTimeout(() => {
+                            console.log('Attempting recovery by fetching new video');
+                            fetchVideo(currentInterest, false);
+                        }, 1000);
+                    }
+                } finally {
+                    // Hide loading indicator
+                    if (loadingSpinner) {
+                        loadingSpinner.style.display = 'none';
+                    }
                 }
-                
-                // Hide loading indicator
-                if (loadingSpinner) {
-                    loadingSpinner.style.display = 'none';
-                }
-            }, 300);
+            }, 500); // Increased delay for better reliability
         }
     </script>
 </body>

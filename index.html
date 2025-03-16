@@ -533,9 +533,10 @@
         <div class="api-key-form">
             <h2>API Configuration</h2>
             <form id="api-key-form">
-                <label for="openaiKey">OpenAI API Key</label>
+                <label for="openaiKey">OpenAI API Key (Optional)</label>
                 <input type="password" id="openaiKey" name="openaiKey" class="api-key-input" placeholder="Enter your OpenAI API Key">
-                <p class="api-key-info">Your OpenAI API key is required to find the most relevant videos for your interests.</p>
+                <p class="api-key-info">Your OpenAI API key is optional. If provided, it will be used to find the most relevant videos for your interests. If not provided, the app will use a built-in database of videos.</p>
+                <button type="button" id="skip-key-btn" class="submit-btn" style="background-color: #666; margin-top: 10px;">Skip (Use Built-in Videos)</button>
                 <button type="button" id="save-keys-btn" class="submit-btn">Save Key</button>
             </form>
         </div>
@@ -843,8 +844,10 @@
             }
         }
 
-        // Check for API keys - only show modal if OpenAI key is not set and not using default key
-        if ((!getStoredValue('openaiKey', '') || getStoredValue('openaiKey', '') === "REPLACE_WITH_YOUR_OPENAI_API_KEY") && 
+        // Check for API keys - only show modal if OpenAI key is not set and not using default key or fallback
+        if ((!getStoredValue('openaiKey', '') || 
+             (getStoredValue('openaiKey', '') === "REPLACE_WITH_YOUR_OPENAI_API_KEY" && 
+              getStoredValue('openaiKey', '') !== "USE_FALLBACK")) && 
             DEFAULT_OPENAI_API_KEY === "REPLACE_WITH_YOUR_OPENAI_API_KEY") {
             document.querySelector('.api-key-modal').style.display = 'flex';
         } else {
@@ -860,14 +863,25 @@
             
             if (openaiKey) {
                 setLocalStorageWithFallback('openaiKey', openaiKey);
-                document.querySelector('.api-key-modal').style.display = 'none';
             } else {
-                alert('Please enter an OpenAI API key');
+                // If no key is provided, set a special value to indicate we're using fallback
+                setLocalStorageWithFallback('openaiKey', 'USE_FALLBACK');
             }
+            document.querySelector('.api-key-modal').style.display = 'none';
+        }
+
+        // Function to skip API key entry and use fallback
+        function skipApiKey() {
+            // Set a special value to indicate we're using fallback
+            setLocalStorageWithFallback('openaiKey', 'USE_FALLBACK');
+            document.querySelector('.api-key-modal').style.display = 'none';
         }
 
         // Connect the save button to the saveApiKeys function
         document.getElementById('save-keys-btn').addEventListener('click', saveApiKeys);
+        
+        // Connect the skip button to the skipApiKey function
+        document.getElementById('skip-key-btn').addEventListener('click', skipApiKey);
 
         // Improved TikTok-style swipe handling
         let swipeStartTime = 0;
@@ -1165,82 +1179,333 @@
         async function searchVideosWithOpenAI(query, isPortrait, targetDuration) {
             console.log('Searching for videos with OpenAI:', query);
             
-            const openaiKey = getStoredValue('openaiKey', '');
-            if (!openaiKey || openaiKey === "REPLACE_WITH_YOUR_OPENAI_API_KEY") {
-                throw new Error('OpenAI API key is required. Please set it in the API Configuration.');
+            try {
+                const openaiKey = getStoredValue('openaiKey', '');
+                if (!openaiKey || openaiKey === "REPLACE_WITH_YOUR_OPENAI_API_KEY" || openaiKey === "USE_FALLBACK") {
+                    console.log('No OpenAI API key found or using fallback, using built-in video selection');
+                    return getFallbackVideo(query, isPortrait, targetDuration);
+                }
+                
+                // Determine format based on orientation
+                const format = isPortrait ? 'vertical' : 'landscape';
+                
+                // Determine duration category
+                let durationCategory;
+                if (targetDuration <= 60) {
+                    durationCategory = 'short (under 1 minute)';
+                } else if (targetDuration <= 300) {
+                    durationCategory = 'medium (1-5 minutes)';
+                } else {
+                    durationCategory = 'long (over 5 minutes)';
+                }
+                
+                // Create the prompt for OpenAI
+                const prompt = `Find the best YouTube video ID for a ${format} format video about "${query}" that is ${durationCategory} in duration. The video should be either funny or informative, depending on what would be most appropriate for the query. Only return a valid YouTube video ID without any explanation or additional text. The response should be exactly 11 characters long (a valid YouTube ID).`;
+                
+                try {
+                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${openaiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-3.5-turbo',
+                            messages: [
+                                {
+                                    role: 'system',
+                                    content: 'You are a helpful assistant that finds the perfect YouTube video IDs based on user interests. You only respond with a valid YouTube video ID, nothing else.'
+                                },
+                                {
+                                    role: 'user',
+                                    content: prompt
+                                }
+                            ],
+                            temperature: 0.7,
+                            max_tokens: 20
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        console.error('OpenAI API error:', errorData);
+                        console.log('Using fallback video selection due to API error');
+                        return getFallbackVideo(query, isPortrait, targetDuration);
+                    }
+                    
+                    const data = await response.json();
+                    const videoId = data.choices[0].message.content.trim();
+                    
+                    // Validate that we got a proper YouTube ID (11 characters)
+                    if (videoId.length !== 11 || /[^a-zA-Z0-9_-]/.test(videoId)) {
+                        console.error('Invalid YouTube ID from OpenAI:', videoId);
+                        console.log('Using fallback video selection due to invalid ID');
+                        return getFallbackVideo(query, isPortrait, targetDuration);
+                    }
+                    
+                    console.log('OpenAI suggested video ID:', videoId);
+                    
+                    // Return a video object
+                    return {
+                        id: videoId,
+                        title: 'Video about ' + query,
+                        channelTitle: 'OpenAI Suggested Channel',
+                        duration: targetDuration,
+                        viewCount: 1000000,
+                        relevanceScore: 1,
+                        language: 'en'
+                    };
+                } catch (error) {
+                    console.error('Error with OpenAI search:', error);
+                    console.log('Using fallback video selection due to error');
+                    return getFallbackVideo(query, isPortrait, targetDuration);
+                }
+            } catch (error) {
+                console.error('General error in searchVideosWithOpenAI:', error);
+                return getFallbackVideo(query, isPortrait, targetDuration);
             }
+        }
+        
+        // Fallback function to get videos when OpenAI is unavailable
+        function getFallbackVideo(query, isPortrait, targetDuration) {
+            console.log('Using fallback video selection for:', query);
             
-            // Determine format based on orientation
-            const format = isPortrait ? 'vertical' : 'landscape';
+            // Expanded predefined video IDs for different categories
+            // Each category now has subcategories for different durations and formats
+            const videoCategories = {
+                // Funny videos
+                funny: {
+                    short: { // Under 60 seconds
+                        vertical: ['xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo', '8ybW48rKBME', 'dQw4w9WgXcQ'],
+                        landscape: ['VDvr08sCPOc', 'ZZ5LpwO-An4', 'astISOttCQ0', 'feA64wXhbjo', 'L_jWHffIx5E']
+                    },
+                    medium: { // 1-5 minutes
+                        vertical: ['60ItHLz5WEA', 'fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo'],
+                        landscape: ['VDvr08sCPOc', 'dQw4w9WgXcQ', 'ZZ5LpwO-An4', 'astISOttCQ0', 'feA64wXhbjo']
+                    },
+                    long: { // 5+ minutes
+                        vertical: ['60ItHLz5WEA', 'fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo'],
+                        landscape: ['VDvr08sCPOc', 'dQw4w9WgXcQ', 'ZZ5LpwO-An4', 'astISOttCQ0', 'feA64wXhbjo']
+                    }
+                },
+                
+                // Informative videos
+                informative: {
+                    short: {
+                        vertical: ['fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo', '60ItHLz5WEA'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    },
+                    medium: {
+                        vertical: ['fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo', '60ItHLz5WEA'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    },
+                    long: {
+                        vertical: ['fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo', '60ItHLz5WEA'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    }
+                },
+                
+                // Topic-specific categories
+                dogs: {
+                    short: {
+                        vertical: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654'],
+                        landscape: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654']
+                    },
+                    medium: {
+                        vertical: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654'],
+                        landscape: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654']
+                    },
+                    long: {
+                        vertical: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654'],
+                        landscape: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654']
+                    }
+                },
+                
+                cats: {
+                    short: {
+                        vertical: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ'],
+                        landscape: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ']
+                    },
+                    medium: {
+                        vertical: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ'],
+                        landscape: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ']
+                    },
+                    long: {
+                        vertical: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ'],
+                        landscape: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ']
+                    }
+                },
+                
+                cooking: {
+                    short: {
+                        vertical: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM'],
+                        landscape: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM']
+                    },
+                    medium: {
+                        vertical: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM'],
+                        landscape: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM']
+                    },
+                    long: {
+                        vertical: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM'],
+                        landscape: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM']
+                    }
+                },
+                
+                science: {
+                    short: {
+                        vertical: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    },
+                    medium: {
+                        vertical: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    },
+                    long: {
+                        vertical: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    }
+                },
+                
+                travel: {
+                    short: {
+                        vertical: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s'],
+                        landscape: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s']
+                    },
+                    medium: {
+                        vertical: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s'],
+                        landscape: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s']
+                    },
+                    long: {
+                        vertical: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s'],
+                        landscape: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s']
+                    }
+                },
+                
+                music: {
+                    short: {
+                        vertical: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0'],
+                        landscape: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0']
+                    },
+                    medium: {
+                        vertical: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0'],
+                        landscape: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0']
+                    },
+                    long: {
+                        vertical: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0'],
+                        landscape: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0']
+                    }
+                },
+                
+                gaming: {
+                    short: {
+                        vertical: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E'],
+                        landscape: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E']
+                    },
+                    medium: {
+                        vertical: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E'],
+                        landscape: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E']
+                    },
+                    long: {
+                        vertical: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E'],
+                        landscape: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E']
+                    }
+                },
+                
+                sports: {
+                    short: {
+                        vertical: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A'],
+                        landscape: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A']
+                    },
+                    medium: {
+                        vertical: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A'],
+                        landscape: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A']
+                    },
+                    long: {
+                        vertical: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A'],
+                        landscape: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A']
+                    }
+                }
+            };
             
-            // Determine duration category
+            // Determine duration category based on targetDuration
             let durationCategory;
             if (targetDuration <= 60) {
-                durationCategory = 'short (under 1 minute)';
-            } else if (targetDuration <= 300) {
-                durationCategory = 'medium (1-5 minutes)';
+                durationCategory = 'short';
+            } else if (targetDuration <= 300) { // 5 minutes
+                durationCategory = 'medium';
             } else {
-                durationCategory = 'long (over 5 minutes)';
+                durationCategory = 'long';
             }
             
-            // Create the prompt for OpenAI
-            const prompt = `Find the best YouTube video ID for a ${format} format video about "${query}" that is ${durationCategory} in duration. The video should be either funny or informative, depending on what would be most appropriate for the query. Only return a valid YouTube video ID without any explanation or additional text. The response should be exactly 11 characters long (a valid YouTube ID).`;
+            // Determine orientation format
+            const orientationFormat = isPortrait ? 'vertical' : 'landscape';
             
-            try {
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${openaiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-3.5-turbo',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: 'You are a helpful assistant that finds the perfect YouTube video IDs based on user interests. You only respond with a valid YouTube video ID, nothing else.'
-                            },
-                            {
-                                role: 'user',
-                                content: prompt
-                            }
-                        ],
-                        temperature: 0.7,
-                        max_tokens: 20
-                    })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error('OpenAI API error:', errorData);
-                    throw new Error('Error communicating with OpenAI. Please try again later.');
-                }
-                
-                const data = await response.json();
-                const videoId = data.choices[0].message.content.trim();
-                
-                // Validate that we got a proper YouTube ID (11 characters)
-                if (videoId.length !== 11 || /[^a-zA-Z0-9_-]/.test(videoId)) {
-                    console.error('Invalid YouTube ID from OpenAI:', videoId);
-                    throw new Error('Could not find a suitable video. Please try a different interest.');
-                }
-                
-                console.log('OpenAI suggested video ID:', videoId);
-                
-                // Return a video object
-                return {
-                    id: videoId,
-                    title: 'Video about ' + query,
-                    channelTitle: 'OpenAI Suggested Channel',
-                    duration: targetDuration,
-                    viewCount: 1000000,
-                    relevanceScore: 1,
-                    language: 'en'
-                };
-            } catch (error) {
-                console.error('Error with OpenAI search:', error);
-                throw error;
+            console.log('Video parameters:', {
+                durationCategory,
+                orientationFormat,
+                targetDuration
+            });
+            
+            // First, check if query contains "funny" or "informative" to prioritize those categories
+            const queryLower = query.toLowerCase();
+            let primaryCategory = null;
+            
+            if (queryLower.includes('funny') || queryLower.includes('comedy') || queryLower.includes('humor') || queryLower.includes('laugh')) {
+                primaryCategory = 'funny';
+            } else if (queryLower.includes('informative') || queryLower.includes('educational') || queryLower.includes('learn') || queryLower.includes('information')) {
+                primaryCategory = 'informative';
             }
+            
+            // If no primary category found, look for topic matches
+            if (!primaryCategory) {
+                // Find the best matching category
+                let bestCategory = 'funny'; // Default to funny if no match
+                let bestScore = 0;
+                
+                for (const category in videoCategories) {
+                    if (category === 'funny' || category === 'informative') continue; // Skip these as they're handled separately
+                    
+                    // Simple matching algorithm - count occurrences of category name in query
+                    const regex = new RegExp(category, 'gi');
+                    const matches = (query.match(regex) || []).length;
+                    
+                    if (matches > bestScore) {
+                        bestScore = matches;
+                        bestCategory = category;
+                    }
+                }
+                
+                // If we found a topic match, use it
+                if (bestScore > 0) {
+                    primaryCategory = bestCategory;
+                } else {
+                    // If no specific topic match, randomly choose between funny and informative
+                    primaryCategory = Math.random() > 0.5 ? 'funny' : 'informative';
+                }
+            }
+            
+            console.log('Selected category:', primaryCategory);
+            
+            // Get videos for the selected category, duration, and orientation
+            const videos = videoCategories[primaryCategory]?.[durationCategory]?.[orientationFormat] || 
+                          videoCategories.funny[durationCategory][orientationFormat]; // Fallback to funny
+            
+            // Pick a random video from the category
+            const randomIndex = Math.floor(Math.random() * videos.length);
+            const videoId = videos[randomIndex];
+            
+            console.log('Selected fallback video ID:', videoId);
+            
+            // Return a video object
+            return {
+                id: videoId,
+                title: 'Video about ' + primaryCategory,
+                channelTitle: 'Fallback Channel',
+                duration: targetDuration, // Match the target duration
+                viewCount: 1000000,
+                relevanceScore: 1,
+                language: 'en'
+            };
         }
         
         // Update the fetchVideo function to use OpenAI

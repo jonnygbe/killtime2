@@ -1013,7 +1013,22 @@
         nextBtn.addEventListener('touchend', function(e) {
             console.log('Next button touched');
             e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling
             loadNextVideo();
+        });
+
+        // Add touchstart event for better iOS button response
+        nextBtn.addEventListener('touchstart', function(e) {
+            console.log('Next button touch started');
+            e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling
+            // Add visual feedback
+            this.style.opacity = '0.7';
+            
+            // Reset opacity after a short delay
+            setTimeout(() => {
+                this.style.opacity = '1';
+            }, 150);
         });
 
         // Function to handle orientation changes specifically for iOS
@@ -1260,153 +1275,153 @@
                 // Funny videos
                 funny: {
                     short: { // Under 60 seconds
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['J---aiyznGQ', 'ZpOLkXWFYlI', 'hY7m5jjJ9mM', 'DODLEX4zzLQ', 'gvXmIapcGsQ'],
+                        landscape: ['J---aiyznGQ', 'ZpOLkXWFYlI', 'hY7m5jjJ9mM', 'DODLEX4zzLQ', 'gvXmIapcGsQ']
                     },
                     medium: { // 1-5 minutes
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['VB4CCHHYOqY', 'p-qfzH0vsLM', 'jHjFZDdQOQA', 'KQ6zr6kCPj8', 'QMINC8r3g-U'],
+                        landscape: ['VB4CCHHYOqY', 'p-qfzH0vsLM', 'jHjFZDdQOQA', 'KQ6zr6kCPj8', 'QMINC8r3g-U']
                     },
                     long: { // 5+ minutes
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['dQw4w9WgXcQ', 'fC7oUOUEEi4', 'cGw-8FrRT1E', 'jofNR_WkoCE', 'XqZsoesa55w'],
+                        landscape: ['dQw4w9WgXcQ', 'fC7oUOUEEi4', 'cGw-8FrRT1E', 'jofNR_WkoCE', 'XqZsoesa55w']
                     }
                 },
                 
                 // Informative videos
                 informative: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['Mh4f9AYRCZY', 'Tn5ywPFetAY', 'wfzadSG4NH0', 'qJUKCrZziAw', 'Mus_vwhTCq0'],
+                        landscape: ['Mh4f9AYRCZY', 'Tn5ywPFetAY', 'wfzadSG4NH0', 'qJUKCrZziAw', 'Mus_vwhTCq0']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['8S0FDjFBj8o', 'rStL7niR7gs', 'Cv1RJTHqpVA', 'LZbHDoyS4VM', 'xuCn8ux2gbs'],
+                        landscape: ['8S0FDjFBj8o', 'rStL7niR7gs', 'Cv1RJTHqpVA', 'LZbHDoyS4VM', 'xuCn8ux2gbs']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8'],
+                        landscape: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8']
                     }
                 },
                 
                 // Topic-specific categories
                 dogs: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['J---aiyznGQ', 'ZpOLkXWFYlI', 'hY7m5jjJ9mM', 'DODLEX4zzLQ', 'gvXmIapcGsQ'],
+                        landscape: ['J---aiyznGQ', 'ZpOLkXWFYlI', 'hY7m5jjJ9mM', 'DODLEX4zzLQ', 'gvXmIapcGsQ']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['VB4CCHHYOqY', 'p-qfzH0vsLM', 'jHjFZDdQOQA', 'KQ6zr6kCPj8', 'QMINC8r3g-U'],
+                        landscape: ['VB4CCHHYOqY', 'p-qfzH0vsLM', 'jHjFZDdQOQA', 'KQ6zr6kCPj8', 'QMINC8r3g-U']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['dQw4w9WgXcQ', 'fC7oUOUEEi4', 'cGw-8FrRT1E', 'jofNR_WkoCE', 'XqZsoesa55w'],
+                        landscape: ['dQw4w9WgXcQ', 'fC7oUOUEEi4', 'cGw-8FrRT1E', 'jofNR_WkoCE', 'XqZsoesa55w']
                     }
                 },
                 
                 cats: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['0H25ve3qts4', 'tpiyEe_CqB4', '0M7ibPk37_U', 'R4anpxoHkPI', 'Z-Y8lEGQZjo'],
+                        landscape: ['0H25ve3qts4', 'tpiyEe_CqB4', '0M7ibPk37_U', 'R4anpxoHkPI', 'Z-Y8lEGQZjo']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['hY7m5jjJ9mM', 'DODLEX4zzLQ', 'gvXmIapcGsQ', 'J---aiyznGQ', 'ZpOLkXWFYlI'],
+                        landscape: ['hY7m5jjJ9mM', 'DODLEX4zzLQ', 'gvXmIapcGsQ', 'J---aiyznGQ', 'ZpOLkXWFYlI']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['XyNh1j7Xn9c', 'pOmu0LtcI6Y', 'PB5FosTwM8s', 'p-qfzH0vsLM', 'jHjFZDdQOQA'],
+                        landscape: ['XyNh1j7Xn9c', 'pOmu0LtcI6Y', 'PB5FosTwM8s', 'p-qfzH0vsLM', 'jHjFZDdQOQA']
                     }
                 },
                 
                 cooking: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['bIqX_vEfJr4', 'VZV8Q9aHGJw', 'bkQw-F-QTJo', 'SQctLn4UOrY', 'ixgux_8U2Hk'],
+                        landscape: ['bIqX_vEfJr4', 'VZV8Q9aHGJw', 'bkQw-F-QTJo', 'SQctLn4UOrY', 'ixgux_8U2Hk']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['JsB57FtaxXQ', 'hZGqtmwboHU', 'Mf6rPZ-GHfo', 'nfY0lrdXar8', 'uNT_AxXrUGs'],
+                        landscape: ['JsB57FtaxXQ', 'hZGqtmwboHU', 'Mf6rPZ-GHfo', 'nfY0lrdXar8', 'uNT_AxXrUGs']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['5Sa9nG8TEsA', 'yJ-lcdMfziw', 'qWAagS_MANg', 'PUP7U5vTMM0', 'nF8ZAMR0-zQ'],
+                        landscape: ['5Sa9nG8TEsA', 'yJ-lcdMfziw', 'qWAagS_MANg', 'PUP7U5vTMM0', 'nF8ZAMR0-zQ']
                     }
                 },
                 
                 science: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['Mh4f9AYRCZY', 'Tn5ywPFetAY', 'wfzadSG4NH0', 'qJUKCrZziAw', 'Mus_vwhTCq0'],
+                        landscape: ['Mh4f9AYRCZY', 'Tn5ywPFetAY', 'wfzadSG4NH0', 'qJUKCrZziAw', 'Mus_vwhTCq0']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['8S0FDjFBj8o', 'rStL7niR7gs', 'Cv1RJTHqpVA', 'LZbHDoyS4VM', 'xuCn8ux2gbs'],
+                        landscape: ['8S0FDjFBj8o', 'rStL7niR7gs', 'Cv1RJTHqpVA', 'LZbHDoyS4VM', 'xuCn8ux2gbs']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8'],
+                        landscape: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8']
                     }
                 },
                 
                 travel: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['byTxABh6E60', 'QpD6QofXYkY', 'byp94QvmxAg', 'bHQqvYy5KYo', 'byTxABh6E60'],
+                        landscape: ['byTxABh6E60', 'QpD6QofXYkY', 'byp94QvmxAg', 'bHQqvYy5KYo', 'byTxABh6E60']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['ufBLI6bB9sg', 'bGZv5ZsAW8k', 'Mus_vwhTCq0', 'Mh4f9AYRCZY', 'Tn5ywPFetAY'],
+                        landscape: ['ufBLI6bB9sg', 'bGZv5ZsAW8k', 'Mus_vwhTCq0', 'Mh4f9AYRCZY', 'Tn5ywPFetAY']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['wfzadSG4NH0', 'qJUKCrZziAw', '8S0FDjFBj8o', 'rStL7niR7gs', 'Cv1RJTHqpVA'],
+                        landscape: ['wfzadSG4NH0', 'qJUKCrZziAw', '8S0FDjFBj8o', 'rStL7niR7gs', 'Cv1RJTHqpVA']
                     }
                 },
                 
                 music: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8', 'jNQXAC9IVRw'],
+                        landscape: ['dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8', 'jNQXAC9IVRw']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['uD4izuDMUQA', 'dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8'],
+                        landscape: ['uD4izuDMUQA', 'dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8'],
+                        landscape: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8']
                     }
                 },
                 
                 gaming: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8', 'jNQXAC9IVRw'],
+                        landscape: ['dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8', 'jNQXAC9IVRw']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['uD4izuDMUQA', 'dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8'],
+                        landscape: ['uD4izuDMUQA', 'dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8'],
+                        landscape: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8']
                     }
                 },
                 
                 sports: {
                     short: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8', 'jNQXAC9IVRw'],
+                        landscape: ['dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8', 'jNQXAC9IVRw']
                     },
                     medium: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['uD4izuDMUQA', 'dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8'],
+                        landscape: ['uD4izuDMUQA', 'dQw4w9WgXcQ', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8']
                     },
                     long: {
-                        vertical: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4'],
-                        landscape: ['eBGIQ7ZuuiU', 'dQw4w9WgXcQ', 'G8iEMVr7GFg', '9bZkp7q19f0', 'QH2-TGUlwu4']
+                        vertical: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8'],
+                        landscape: ['jNQXAC9IVRw', 'uD4izuDMUQA', 'kJQP7kiw5Fk', 'JGwWNGJdvx8', 'CevxZvSJLk8']
                     }
                 }
             };
@@ -1579,6 +1594,12 @@
                         // Set the source with all required parameters
                         videoPlayer.src = videoUrl;
                         
+                        // Add error handling for iframe load errors
+                        videoPlayer.onerror = function() {
+                            console.error('Error loading video iframe');
+                            handleVideoError();
+                        };
+                        
                         // Force reload the iframe
                         setTimeout(() => {
                             try {
@@ -1612,11 +1633,18 @@
                                 }, 50);
                             } catch (e) {
                                 console.log('Error reloading iframe:', e);
+                                handleVideoError();
                             }
                         }, 100);
                     } else {
                         // Standard approach for other platforms
                         videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=1&controls=1`;
+                        
+                        // Add error handling for iframe load errors
+                        videoPlayer.onerror = function() {
+                            console.error('Error loading video iframe');
+                            handleVideoError();
+                        };
                     }
                     
                     const errorMessage = document.querySelector('.error-message');
@@ -1630,13 +1658,50 @@
                     
                     // Add manual check for video end
                     setTimeout(addVideoEndCheck, 2000);
+                    
+                    // Add a timeout to check if the video loaded properly
+                    setTimeout(() => {
+                        try {
+                            // Try to check if the iframe loaded properly
+                            const iframe = document.getElementById('videoPlayer');
+                            if (iframe) {
+                                // Check if we can access the iframe content
+                                try {
+                                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                                    // If we can access it and it has an error message, try another video
+                                    if (iframeDoc.body && iframeDoc.body.innerHTML.includes('Video unavailable')) {
+                                        console.error('Video unavailable detected in iframe');
+                                        handleVideoError();
+                                    }
+                                } catch (e) {
+                                    // Cross-origin restrictions prevent access, which is normal
+                                    console.log('Cannot access iframe content due to cross-origin restrictions');
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error checking video availability:', e);
+                        }
+                    }, 3000);
                 } catch (error) {
                     console.error('Error loading video:', error);
-                    const errorMessage = document.querySelector('.error-message');
-                    errorMessage.textContent = 'Error loading video. Please try again.';
-                    errorMessage.style.display = 'block';
+                    handleVideoError();
                 }
             }, 500);
+        }
+
+        // Function to handle video errors
+        function handleVideoError() {
+            console.log('Handling video error, loading next video');
+            const errorMessage = document.querySelector('.error-message');
+            errorMessage.textContent = 'Video unavailable. Loading another video...';
+            errorMessage.style.display = 'block';
+            
+            // Hide the error message after 2 seconds
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+                // Try to load the next video
+                loadNextVideo();
+            }, 2000);
         }
 
         // Function to set up event listener for video end
@@ -1948,12 +2013,19 @@
 
         // Function to load the next video from the queue
         function loadNextVideo() {
+            console.log('Loading next video from queue');
+            
             // Clear the current video first
             videoPlayer.src = '';
             
+            // Show loading indicator
+            const loadingSpinner = document.querySelector('.loading-spinner');
+            if (loadingSpinner) {
+                loadingSpinner.style.display = 'inline-block';
+            }
+            
             // Add a small delay before loading the next video
             setTimeout(function() {
-                console.log('Loading next video from queue');
                 if (videoQueue.length > 0) {
                     // Get the next video from the queue
                     const nextVideo = videoQueue.shift();
@@ -1969,7 +2041,12 @@
                     // If queue is empty, fetch a new video
                     fetchVideo(currentInterest, false);
                 }
-            }, 100);
+                
+                // Hide loading indicator
+                if (loadingSpinner) {
+                    loadingSpinner.style.display = 'none';
+                }
+            }, 300);
         }
     </script>
 </body>

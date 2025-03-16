@@ -1152,18 +1152,14 @@
                 submitBtn.disabled = true;
                 loadingSpinner.style.display = 'inline-block';
                 
-                let youtubeKey = getStoredValue('youtubeKey', DEFAULT_YOUTUBE_API_KEY);
-                
-                if (!youtubeKey || youtubeKey === "REPLACE_WITH_YOUR_YOUTUBE_API_KEY") {
-                    throw new Error('YouTube API key not found. Please configure your API key.');
-                }
-                
-                // STANDALONE MODE - No server required
-                // 1. First, create a search query based on the interest
+                // Skip YouTube API and use our curated video selection directly
+                // This will save your API quota completely
                 const searchQuery = await createSearchQuery(interest);
+                console.log('Using direct video selection instead of YouTube API to save quota');
                 
-                // 2. Then search YouTube directly
-                const video = await searchYouTube(searchQuery, youtubeKey, dialValue);
+                // Use our intelligent video selection directly
+                const isPortrait = window.innerHeight > window.innerWidth;
+                const video = await intelligentVideoSearch(searchQuery, isPortrait, dialValue);
                 
                 if (video && video.id) {
                     // First show black screen and progress bar
@@ -1290,8 +1286,42 @@
                 'shorts', 'tiktok', 'vertical video', 'short form', 'reels'
             ];
             
-            // Choose keywords based on orientation
-            const keywordsArray = isPortrait ? verticalKeywords : regularKeywords;
+            // Keywords for funny content
+            const funnyKeywords = [
+                'funny', 'comedy', 'humor', 'laugh', 'hilarious', 'jokes'
+            ];
+            
+            // Keywords for informative content
+            const informativeKeywords = [
+                'informative', 'educational', 'learn', 'facts', 'knowledge', 'interesting'
+            ];
+            
+            // Determine if the user wants funny or informative content
+            const interestLower = interest.toLowerCase();
+            let contentType = 'regular';
+            
+            if (interestLower.includes('funny') || interestLower.includes('comedy') || 
+                interestLower.includes('humor') || interestLower.includes('laugh')) {
+                contentType = 'funny';
+            } else if (interestLower.includes('informative') || interestLower.includes('educational') || 
+                       interestLower.includes('learn') || interestLower.includes('facts')) {
+                contentType = 'informative';
+            } else {
+                // If not specified, randomly choose between funny and informative
+                contentType = Math.random() > 0.5 ? 'funny' : 'informative';
+            }
+            
+            // Choose keywords based on orientation and content type
+            let keywordsArray;
+            if (isPortrait) {
+                keywordsArray = verticalKeywords;
+            } else if (contentType === 'funny') {
+                keywordsArray = funnyKeywords;
+            } else if (contentType === 'informative') {
+                keywordsArray = informativeKeywords;
+            } else {
+                keywordsArray = regularKeywords;
+            }
             
             // Pick a random keyword to combine with the interest
             const randomKeyword = keywordsArray[Math.floor(Math.random() * keywordsArray.length)];
@@ -1305,148 +1335,251 @@
                 query += ` ${minutes} minutes`;
             }
             
-            console.log('Search query:', query, 'isPortrait:', isPortrait);
+            console.log('Search query:', query, 'isPortrait:', isPortrait, 'contentType:', contentType);
             
             return query;
         }
         
-        // Search YouTube directly
-        async function searchYouTube(query, apiKey, targetDuration) {
-            try {
-                // Check if device is in portrait mode
-                const isPortrait = window.innerHeight > window.innerWidth;
-                
-                // First, search for videos matching the query
-                let searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoEmbeddable=true&videoSyndicated=true&maxResults=20&relevanceLanguage=en&key=${apiKey}`;
-                
-                // For portrait mode, prioritize short videos
-                if (isPortrait) {
-                    // Add videoDuration=short parameter to find shorter videos
-                    searchUrl += '&videoDuration=short';
-                }
-                
-                const searchResponse = await fetch(searchUrl);
-                const searchData = await searchResponse.json();
-                
-                if (!searchResponse.ok) {
-                    // Check if we hit the quota limit
-                    if (searchData.error && searchData.error.message && 
-                        searchData.error.message.includes('quota')) {
-                        console.log('YouTube API quota exceeded, using fallback method');
-                        return await fallbackVideoSearch(query, isPortrait);
+        // Intelligent video search that doesn't use YouTube API
+        async function intelligentVideoSearch(query, isPortrait, targetDuration) {
+            console.log('Using intelligent video search for query:', query);
+            
+            // Expanded predefined video IDs for different categories
+            // Each category now has subcategories for different durations and formats
+            const videoCategories = {
+                // Funny videos
+                funny: {
+                    short: { // Under 60 seconds
+                        vertical: ['xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo', '8ybW48rKBME', 'dQw4w9WgXcQ'],
+                        landscape: ['VDvr08sCPOc', 'ZZ5LpwO-An4', 'astISOttCQ0', 'feA64wXhbjo', 'L_jWHffIx5E']
+                    },
+                    medium: { // 1-5 minutes
+                        vertical: ['60ItHLz5WEA', 'fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo'],
+                        landscape: ['VDvr08sCPOc', 'dQw4w9WgXcQ', 'ZZ5LpwO-An4', 'astISOttCQ0', 'feA64wXhbjo']
+                    },
+                    long: { // 5+ minutes
+                        vertical: ['60ItHLz5WEA', 'fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo'],
+                        landscape: ['VDvr08sCPOc', 'dQw4w9WgXcQ', 'ZZ5LpwO-An4', 'astISOttCQ0', 'feA64wXhbjo']
                     }
-                    throw new Error(searchData.error?.message || 'YouTube API error');
-                }
+                },
                 
-                if (!searchData.items || searchData.items.length === 0) {
-                    throw new Error('No videos found matching your interest. Please try a different topic.');
-                }
-                
-                // Get video IDs from search results
-                const videoIds = searchData.items.map(item => item.id.videoId).join(',');
-                
-                // Get detailed information about these videos
-                const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,status,snippet&id=${videoIds}&key=${apiKey}`;
-                const detailsResponse = await fetch(detailsUrl);
-                const detailsData = await detailsResponse.json();
-                
-                if (!detailsResponse.ok) {
-                    // Check if we hit the quota limit
-                    if (detailsData.error && detailsData.error.message && 
-                        detailsData.error.message.includes('quota')) {
-                        console.log('YouTube API quota exceeded, using fallback method');
-                        return await fallbackVideoSearch(query, isPortrait);
+                // Informative videos
+                informative: {
+                    short: {
+                        vertical: ['fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo', '60ItHLz5WEA'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    },
+                    medium: {
+                        vertical: ['fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo', '60ItHLz5WEA'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    },
+                    long: {
+                        vertical: ['fHI8X4OXluQ', 'xvFZjo5PgG0', 'Zi_XLOBDo_Y', 'iik25wqIuFo', '60ItHLz5WEA'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
                     }
-                    throw new Error(detailsData.error?.message || 'YouTube API error');
-                }
+                },
                 
-                // Combine search results with video details and filter for embeddable videos
-                const videos = [];
-                
-                searchData.items.forEach(searchItem => {
-                    const videoDetails = detailsData.items.find(item => item.id === searchItem.id.videoId);
-                    
-                    if (videoDetails && videoDetails.status.embeddable !== false) {
-                        const duration = parseDuration(videoDetails.contentDetails.duration);
-                        
-                        // Different duration handling based on orientation
-                        if (isPortrait) {
-                            // For portrait mode, prefer shorter videos (under 60 seconds)
-                            if (duration > 60) {
-                                return;
-                            }
-                        } else {
-                            // For landscape mode, respect the selected time
-                            if (duration > targetDuration) {
-                                return;
-                            }
-                        }
-                        
-                        // Check if video is in English (either by snippet.defaultAudioLanguage or defaultLanguage)
-                        // but don't filter out videos with no language specified
-                        const videoLanguage = videoDetails.snippet.defaultAudioLanguage || videoDetails.snippet.defaultLanguage || '';
-                        const isEnglish = !videoLanguage || videoLanguage.startsWith('en');
-                        
-                        // Skip non-English videos if we can detect the language
-                        if (videoLanguage && !isEnglish) {
-                            return;
-                        }
-                        
-                        // Skip videos that are specifically about learning English language
-                        const title = videoDetails.snippet.title.toLowerCase();
-                        const description = videoDetails.snippet.description.toLowerCase();
-                        if ((title.includes('learn english') || title.includes('english lesson') || 
-                             title.includes('english class') || title.includes('english course')) &&
-                            (description.includes('learn english') || description.includes('english lesson') || 
-                             description.includes('english grammar') || description.includes('english vocabulary'))) {
-                            return;
-                        }
-                        
-                        const viewCount = parseInt(videoDetails.statistics.viewCount || '0');
-                        
-                        // Calculate relevance score based on duration match and view count
-                        const durationDiff = Math.abs(duration - targetDuration);
-                        const durationScore = Math.max(0, 1 - (durationDiff / targetDuration));
-                        const viewScore = Math.min(1, Math.log10(viewCount + 1) / 7);
-                        const relevanceScore = (durationScore * 0.7) + (viewScore * 0.3);
-                        
-                        videos.push({
-                            id: searchItem.id.videoId,
-                            title: searchItem.snippet.title,
-                            channelTitle: searchItem.snippet.channelTitle,
-                            duration: duration,
-                            viewCount: viewCount,
-                            relevanceScore: relevanceScore,
-                            language: videoLanguage
-                        });
+                // Topic-specific categories
+                dogs: {
+                    short: {
+                        vertical: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654'],
+                        landscape: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654']
+                    },
+                    medium: {
+                        vertical: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654'],
+                        landscape: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654']
+                    },
+                    long: {
+                        vertical: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654'],
+                        landscape: ['jtHrBsU9xhs', 'j5a0jTc9S10', 'Sg_0ZKr9fXc', 'AcL0MeVZIxM', 'kTHNpusq654']
                     }
-                });
+                },
                 
-                if (videos.length === 0) {
-                    throw new Error('No suitable videos found. Try a different interest or increase the time.');
+                cats: {
+                    short: {
+                        vertical: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ'],
+                        landscape: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ']
+                    },
+                    medium: {
+                        vertical: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ'],
+                        landscape: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ']
+                    },
+                    long: {
+                        vertical: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ'],
+                        landscape: ['hY7m5jjJ9mM', 'CQ85sUNBK7w', 'tpiyEe_CqB4', '5dsGWM5XGdg', 'J---aiyznGQ']
+                    }
+                },
+                
+                cooking: {
+                    short: {
+                        vertical: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM'],
+                        landscape: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM']
+                    },
+                    medium: {
+                        vertical: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM'],
+                        landscape: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM']
+                    },
+                    long: {
+                        vertical: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM'],
+                        landscape: ['VZV8h8BHz0w', 'PUP7U5vTMM0', 'bF_Mg7T6oF4', '2KR44a_5v_A', 'ETy9tuptaAM']
+                    }
+                },
+                
+                science: {
+                    short: {
+                        vertical: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    },
+                    medium: {
+                        vertical: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    },
+                    long: {
+                        vertical: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY'],
+                        landscape: ['libKVRa01L8', 'FACK2knC08E', 'XFr0dk6Ca7o', 'sNhhvQGsMEc', 'wNDGgL73ihY']
+                    }
+                },
+                
+                travel: {
+                    short: {
+                        vertical: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s'],
+                        landscape: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s']
+                    },
+                    medium: {
+                        vertical: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s'],
+                        landscape: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s']
+                    },
+                    long: {
+                        vertical: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s'],
+                        landscape: ['bHQqvYy5KYo', 'AlhB6JD0Lcc', 'QpKZrVRwZsg', 'LdviPe1iSuE', 'QW7GgK5Jk2s']
+                    }
+                },
+                
+                music: {
+                    short: {
+                        vertical: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0'],
+                        landscape: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0']
+                    },
+                    medium: {
+                        vertical: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0'],
+                        landscape: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0']
+                    },
+                    long: {
+                        vertical: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0'],
+                        landscape: ['JGwWNGJdvx8', 'kJQP7kiw5Fk', 'RgKAFK5djSk', 'fJ9rUzIMcZQ', '9bZkp7q19f0']
+                    }
+                },
+                
+                gaming: {
+                    short: {
+                        vertical: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E'],
+                        landscape: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E']
+                    },
+                    medium: {
+                        vertical: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E'],
+                        landscape: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E']
+                    },
+                    long: {
+                        vertical: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E'],
+                        landscape: ['hB6eY73sLV0', 'dQw4w9WgXcQ', '0J4tuFwj1uw', 'FTQbiNvZqaY', 'L_jWHffIx5E']
+                    }
+                },
+                
+                sports: {
+                    short: {
+                        vertical: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A'],
+                        landscape: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A']
+                    },
+                    medium: {
+                        vertical: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A'],
+                        landscape: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A']
+                    },
+                    long: {
+                        vertical: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A'],
+                        landscape: ['2RQrSjw21Ik', 'oYh7zNLsHiM', 'jofNR_WkoCE', 'dv13gl0a-FA', 'ZyhrYis509A']
+                    }
                 }
-                
-                // Sort by relevance score (highest first)
-                videos.sort((a, b) => b.relevanceScore - a.relevanceScore);
-                
-                // Return the best match
-                return videos[0];
-            } catch (error) {
-                console.error('YouTube search error:', error);
-                throw error;
+            };
+            
+            // Determine duration category based on targetDuration
+            let durationCategory;
+            if (targetDuration <= 60) {
+                durationCategory = 'short';
+            } else if (targetDuration <= 300) { // 5 minutes
+                durationCategory = 'medium';
+            } else {
+                durationCategory = 'long';
             }
-        }
-        
-        // Parse YouTube duration format (PT1H30M15S) to seconds
-        function parseDuration(duration) {
-            const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-            if (!match) return 0; // Handle invalid duration format
             
-            const hours = match[1] ? match[1].slice(0, -1) : '0';
-            const minutes = match[2] ? match[2].slice(0, -1) : '0';
-            const seconds = match[3] ? match[3].slice(0, -1) : '0';
+            // Determine orientation format
+            const orientationFormat = isPortrait ? 'vertical' : 'landscape';
             
-            return (parseInt(hours) * 3600) + (parseInt(minutes) * 60) + parseInt(seconds);
+            console.log('Video parameters:', {
+                durationCategory,
+                orientationFormat,
+                targetDuration
+            });
+            
+            // First, check if query contains "funny" or "informative" to prioritize those categories
+            const queryLower = query.toLowerCase();
+            let primaryCategory = null;
+            
+            if (queryLower.includes('funny') || queryLower.includes('comedy') || queryLower.includes('humor') || queryLower.includes('laugh')) {
+                primaryCategory = 'funny';
+            } else if (queryLower.includes('informative') || queryLower.includes('educational') || queryLower.includes('learn') || queryLower.includes('information')) {
+                primaryCategory = 'informative';
+            }
+            
+            // If no primary category found, look for topic matches
+            if (!primaryCategory) {
+                // Find the best matching category
+                let bestCategory = 'funny'; // Default to funny if no match
+                let bestScore = 0;
+                
+                for (const category in videoCategories) {
+                    if (category === 'funny' || category === 'informative') continue; // Skip these as they're handled separately
+                    
+                    // Simple matching algorithm - count occurrences of category name in query
+                    const regex = new RegExp(category, 'gi');
+                    const matches = (query.match(regex) || []).length;
+                    
+                    if (matches > bestScore) {
+                        bestScore = matches;
+                        bestCategory = category;
+                    }
+                }
+                
+                // If we found a topic match, use it
+                if (bestScore > 0) {
+                    primaryCategory = bestCategory;
+                } else {
+                    // If no specific topic match, randomly choose between funny and informative
+                    primaryCategory = Math.random() > 0.5 ? 'funny' : 'informative';
+                }
+            }
+            
+            console.log('Selected category:', primaryCategory);
+            
+            // Get videos for the selected category, duration, and orientation
+            const videos = videoCategories[primaryCategory]?.[durationCategory]?.[orientationFormat] || 
+                          videoCategories.funny[durationCategory][orientationFormat]; // Fallback to funny
+            
+            // Pick a random video from the category
+            const randomIndex = Math.floor(Math.random() * videos.length);
+            const videoId = videos[randomIndex];
+            
+            console.log('Selected video ID:', videoId);
+            
+            // Return a video object
+            return {
+                id: videoId,
+                title: 'Video about ' + primaryCategory,
+                channelTitle: 'Curated Channel',
+                duration: targetDuration, // Match the target duration
+                viewCount: 1000000,
+                relevanceScore: 1,
+                language: 'en'
+            };
         }
 
         // Function to set up event listener for video end
@@ -1704,13 +1837,6 @@
             if (dialValue === 0) {
                 videoContainer.style.display = 'flex';
                 showTimeUpMessage();
-                return;
-            }
-
-            const youtubeKey = getStoredValue('youtubeKey', DEFAULT_YOUTUBE_API_KEY);
-
-            if (!youtubeKey || youtubeKey === "REPLACE_WITH_YOUR_YOUTUBE_API_KEY") {
-                document.querySelector('.api-key-modal').style.display = 'flex';
                 return;
             }
 

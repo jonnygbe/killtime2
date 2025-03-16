@@ -7,10 +7,12 @@
     <title>Killtime</title>
     <style>
         :root {
-            --primary-color: #1DB954;
+            --primary-color: #3aff7f;
+            --primary-color-rgb: 58, 255, 127;
             --bg-color: #121212;
             --text-color: #FFFFFF;
             --secondary-bg: #282828;
+            --error-bg: rgba(58, 255, 127, 0.1);
         }
 
         body {
@@ -102,17 +104,17 @@
             background: rgba(0, 0, 0, 0.5);
             z-index: 2005;
             display: none;
-            transition: height 0.3s ease;
+            transition: opacity 0.3s ease;
             overflow: visible;
         }
 
         .progress-bar {
             height: 100%;
-            background: var(--primary-color);
             width: 0%;
             transition: width 0.5s linear;
-            box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+            box-shadow: 0 0 10px rgba(var(--primary-color-rgb), 0.5);
             position: relative;
+            background: var(--primary-color);
         }
 
         .progress-time {
@@ -133,6 +135,7 @@
             width: 300px;
             height: 300px;
             padding: 0;
+            max-width: 100%;
         }
 
         .dial {
@@ -140,7 +143,7 @@
             height: 100%;
             border-radius: 50%;
             background: var(--secondary-bg);
-            box-shadow: 0 0 50px rgba(29, 185, 84, 0.2);
+            box-shadow: 0 0 50px rgba(var(--primary-color-rgb), 0.2);
             position: relative;
             cursor: pointer;
             border: 2px solid var(--primary-color);
@@ -170,7 +173,7 @@
             border-radius: 3px;
             pointer-events: none;
             z-index: 10;
-            box-shadow: 0 0 20px rgba(29, 185, 84, 0.4);
+            box-shadow: 0 0 20px rgba(var(--primary-color-rgb), 0.4);
         }
 
         .dial-needle::after {
@@ -183,7 +186,7 @@
             height: 12px;
             background: var(--primary-color);
             border-radius: 50%;
-            box-shadow: 0 0 20px rgba(29, 185, 84, 0.6);
+            box-shadow: 0 0 20px rgba(var(--primary-color-rgb), 0.6);
         }
 
         .dial-value {
@@ -196,7 +199,7 @@
             color: var(--primary-color);
             pointer-events: none;
             z-index: 10;
-            text-shadow: 0 0 20px rgba(29, 185, 84, 0.4);
+            text-shadow: 0 0 20px rgba(var(--primary-color-rgb), 0.4);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             letter-spacing: -1px;
             text-align: center;
@@ -217,7 +220,7 @@
             height: 12px;
             background: var(--primary-color);
             transform-origin: center bottom;
-            box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
+            box-shadow: 0 0 10px rgba(var(--primary-color-rgb), 0.3);
         }
 
         .dial-marker-label {
@@ -228,7 +231,7 @@
             white-space: nowrap;
             text-align: center;
             pointer-events: none;
-            text-shadow: 0 0 10px rgba(29, 185, 84, 0.4);
+            text-shadow: 0 0 10px rgba(var(--primary-color-rgb), 0.4);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
@@ -248,7 +251,8 @@
         }
 
         .interest-input {
-            width: min(90%, 400px);
+            width: 300px;
+            max-width: 100%;
             padding: 15px;
             margin: 20px auto;
             border: 2px solid var(--primary-color);
@@ -259,6 +263,7 @@
             transition: all 0.3s ease;
             display: block;
             text-align: center;
+            box-sizing: border-box;
         }
 
         .interest-input::placeholder {
@@ -266,7 +271,9 @@
         }
 
         .submit-btn {
-            padding: 15px 40px;
+            width: 300px;
+            max-width: 100%;
+            padding: 15px 0;
             background: var(--primary-color);
             color: var(--bg-color);
             border: none;
@@ -274,23 +281,24 @@
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: background-color 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-top: 10px;
-            box-shadow: 0 4px 10px rgba(29, 185, 84, 0.3);
+            box-shadow: 0 4px 10px rgba(var(--primary-color-rgb), 0.3);
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(29, 185, 84, 0.4);
+            background-color: #2ed672;
         }
 
         .submit-btn:disabled {
             background: #666;
             cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
 
         .error-message {
@@ -298,10 +306,13 @@
             margin: 10px auto;
             padding: 10px;
             border-radius: 8px;
-            background: rgba(29, 185, 84, 0.1);
+            background: var(--error-bg);
             display: none;
             text-align: center;
-            max-width: 400px;
+            max-width: 300px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 14px;
         }
 
         .loading-spinner {
@@ -332,28 +343,30 @@
             flex-direction: column;
             touch-action: pan-y;
             overflow: hidden;
+            -webkit-overflow-scrolling: touch; /* For better iOS scrolling */
         }
 
         #videoPlayer {
             width: 100%;
             height: 100%;
             border: none;
+            background: #000;
         }
 
         .swipe-indicator {
             position: absolute;
-            bottom: 20px;
+            bottom: 70px;
             left: 50%;
             transform: translateX(-50%);
             color: var(--primary-color);
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.7);
             padding: 10px 20px;
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             animation: pulse 2s infinite;
-            opacity: 1;
+            opacity: 0;
             transition: opacity 0.5s ease;
             text-align: center;
             pointer-events: none;
@@ -462,7 +475,16 @@
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 2px;
-            box-shadow: 0 0 50px rgba(29, 185, 84, 0.5);
+            box-shadow: 0 0 50px rgba(var(--primary-color-rgb), 0.5);
+        }
+
+        .form-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 300px;
+            max-width: 100%;
+            margin: 0 auto;
         }
     </style>
 </head>
@@ -498,7 +520,6 @@
         <div class="close-btn" aria-label="Close video">✕</div>
         <iframe id="videoPlayer" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" title="YouTube video player"></iframe>
         <div class="swipe-indicator">
-            Swipe up for next video
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M12 5L12 19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M19 12L12 5L5 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -560,8 +581,10 @@
             
             const dialSize = dial.offsetWidth;
             const center = dialSize / 2;
+            const borderWidth = 2; // Border width of the dial
             
-            for (let i = 0; i <= 15; i += 5) {
+            // Create markers for 5, 10, and 15 minutes (skip 0)
+            for (let i = 5; i <= 15; i += 5) {
                 const minutes = i;
                 const angle = (minutes / 15) * 360 - 90; // -90 to start at top
                 const radians = (angle * Math.PI) / 180;
@@ -571,7 +594,7 @@
                 marker.className = 'dial-marker';
                 
                 // Position marker at the edge of the dial
-                const markerDistance = center - 2; // Account for border
+                const markerDistance = center - borderWidth;
                 const markerX = center + Math.cos(radians) * markerDistance;
                 const markerY = center + Math.sin(radians) * markerDistance;
                 
@@ -587,8 +610,8 @@
                 label.className = 'dial-marker-label';
                 label.textContent = minutes;
                 
-                // Position label inside the dial
-                const labelDistance = center * 0.7;
+                // Position label outside the dial
+                const labelDistance = center * 1.15; // Position outside the dial
                 const labelX = center + Math.cos(radians) * labelDistance;
                 const labelY = center + Math.sin(radians) * labelDistance;
                 
@@ -597,8 +620,8 @@
                 label.style.top = `${labelY}px`;
                 label.style.transform = 'translate(-50%, -50%)';
                 
-                // Make 0 and 15 slightly larger
-                if (minutes === 0 || minutes === 15) {
+                // Make 15 slightly larger
+                if (minutes === 15) {
                     label.style.fontSize = '18px';
                     label.style.fontWeight = '700';
                 }
@@ -606,6 +629,34 @@
                 dialMarkers.appendChild(marker);
                 dialMarkers.appendChild(label);
             }
+            
+            // Add dot indicators at bottom positions (7.5 and 22.5 minutes)
+            const indicatorAngles = [135, 225]; // Bottom positions at 4:30 and 7:30
+            
+            indicatorAngles.forEach(angle => {
+                const radians = (angle - 90) * (Math.PI / 180);
+                
+                // Create indicator
+                const indicator = document.createElement('div');
+                indicator.className = 'dial-marker';
+                
+                // Position indicator at the edge of the dial
+                const indicatorDistance = center - borderWidth;
+                const indicatorX = center + Math.cos(radians) * indicatorDistance;
+                const indicatorY = center + Math.sin(radians) * indicatorDistance;
+                
+                indicator.style.position = 'absolute';
+                indicator.style.width = '6px'; // Slightly larger for better visibility
+                indicator.style.height = '6px'; // Slightly larger for better visibility
+                indicator.style.borderRadius = '50%'; // Make it a dot
+                indicator.style.left = `${indicatorX}px`;
+                indicator.style.top = `${indicatorY}px`;
+                indicator.style.transform = 'translate(-50%, -50%)'; // Center the dot
+                indicator.style.background = '#FFFFFF'; // White color
+                indicator.style.boxShadow = '0 0 8px rgba(255, 255, 255, 0.8)'; // White glow
+                
+                dialMarkers.appendChild(indicator);
+            });
         }
 
         // Function to update the dial display (time text)
@@ -630,12 +681,12 @@
             if (fillPercentage <= 0) {
                 dialFill.style.background = 'transparent';
             } else if (fillPercentage >= 1) {
-                dialFill.style.background = 'rgba(29, 185, 84, 0.15)';
+                dialFill.style.background = 'rgba(var(--primary-color-rgb), 0.15)';
             } else {
-                // Use conic-gradient for the fill, starting from the top (-90deg)
+                // Use conic-gradient for the fill, starting from the top (0deg)
                 dialFill.style.background = `conic-gradient(
-                    from -90deg,
-                    rgba(29, 185, 84, 0.15) 0deg ${angle}deg,
+                    from 0deg at 50% 50%,
+                    rgba(var(--primary-color-rgb), 0.15) 0deg ${angle}deg,
                     transparent ${angle}deg 360deg
                 )`;
             }
@@ -811,45 +862,49 @@
         // Connect the save button to the saveApiKeys function
         document.getElementById('save-keys-btn').addEventListener('click', saveApiKeys);
 
-        // Handle swipe up for next video
+        // Improved TikTok-style swipe handling
+        let swipeStartTime = 0;
+        let swipeThreshold = 80; // Pixels to trigger a swipe
+        let velocityThreshold = 0.3; // Pixels per millisecond
+
+        // Handle swipe up for next video - TikTok style
         videoContainer.addEventListener('touchstart', function(e) {
             touchStartY = e.changedTouches[0].screenY;
+            swipeStartTime = Date.now();
+            
+            // Reset any ongoing transitions
+            videoContainer.style.transition = 'none';
+            videoContainer.style.transform = 'translateY(0)';
         }, { passive: false });
-        
+
         videoContainer.addEventListener('touchmove', function(e) {
             // Get current touch position
             const currentY = e.changedTouches[0].screenY;
             // Calculate distance moved
             const deltaY = touchStartY - currentY;
             
-            // If swiping up significantly, prevent default to avoid browser UI showing
-            if (deltaY > 30) {
+            // If swiping up, show visual feedback
+            if (deltaY > 0) {
                 e.preventDefault();
                 
-                // Optional: Add visual feedback during swipe
-                const translateY = Math.min(deltaY, 100); // Cap at 100px
+                // Visual feedback during swipe - TikTok style
+                const translateY = Math.min(deltaY * 0.5, window.innerHeight * 0.3); // More resistance than TikTok
                 videoContainer.style.transform = `translateY(-${translateY}px)`;
-                
-                // Show swipe indicator when user starts swiping
-                const swipeIndicator = document.querySelector('.swipe-indicator');
-                swipeIndicator.style.opacity = '1';
-                
-                // Clear any existing timeout
-                clearTimeout(swipeTimeout);
             }
         }, { passive: false });
-        
+
         videoContainer.addEventListener('touchend', function(e) {
             touchEndY = e.changedTouches[0].screenY;
             const swipeDistance = touchStartY - touchEndY;
+            const swipeTime = Date.now() - swipeStartTime;
+            const swipeVelocity = Math.abs(swipeDistance) / swipeTime;
             
-            // Reset transform regardless of swipe direction
-            videoContainer.style.transform = 'translateY(0)';
+            // Check if it's a valid swipe up (distance or velocity based)
+            const isValidSwipe = swipeDistance > swipeThreshold || (swipeDistance > 30 && swipeVelocity > velocityThreshold);
             
-            // If swiped up significantly, trigger next video
-            if (swipeDistance > 100) { // Increased threshold for more intentional swipes
-                // Add a sliding up animation
-                videoContainer.style.transition = 'transform 0.5s ease-out';
+            if (isValidSwipe) {
+                // TikTok-style animation - slide up and out
+                videoContainer.style.transition = 'transform 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
                 videoContainer.style.transform = 'translateY(-100%)';
                 
                 // After animation completes, reset position and get next video
@@ -857,13 +912,11 @@
                     videoContainer.style.transition = 'none';
                     videoContainer.style.transform = 'translateY(0)';
                     getNextVideo();
-                }, 500);
+                }, 400);
             } else {
-                // Hide swipe indicator after a short delay if not swiped enough
-                swipeTimeout = setTimeout(() => {
-                    const swipeIndicator = document.querySelector('.swipe-indicator');
-                    swipeIndicator.style.opacity = '0';
-                }, 2000);
+                // Snap back if not a valid swipe
+                videoContainer.style.transition = 'transform 0.2s ease-out';
+                videoContainer.style.transform = 'translateY(0)';
             }
         }, { passive: false });
 
@@ -935,6 +988,7 @@
             elapsedTime = 0; // Reset elapsed time when starting fresh
             progressBar.style.width = '0%';
             progressContainer.style.display = 'block';
+            progressContainer.style.opacity = '1';
             
             // Create or update the time display
             let progressTime = document.querySelector('.progress-time');
@@ -977,6 +1031,7 @@
         function continueProgressBar() {
             // Don't reset elapsed time, just continue from where we left off
             progressContainer.style.display = 'block';
+            progressContainer.style.opacity = '1';
             
             // Create or update the time display
             let progressTime = document.querySelector('.progress-time');
@@ -1060,38 +1115,46 @@
                 const video = await searchYouTube(searchQuery, youtubeKey, dialValue);
                 
                 if (video && video.id) {
-                    // Reset swipe indicator to visible
-                    swipeIndicator.style.opacity = '1';
-                    
+                    // First show black screen and progress bar
                     videoContainer.style.display = 'flex';
-                    // Use embed URL format with origin parameter to help with cross-origin issues
-                    // Added autoplay=1 and rel=0 to prevent showing related videos
-                    videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0`;
-                    errorMessage.style.display = 'none';
                     
-                    // Start or continue progress bar
+                    // Start or continue progress bar immediately
                     if (resetProgress) {
                         startProgressBar();
                     } else {
                         continueProgressBar();
                     }
                     
-                    // Clear any existing timeout
-                    clearTimeout(swipeTimeout);
-                    
-                    // Hide swipe indicator after 5 seconds (increased from 2 seconds for better visibility)
-                    swipeTimeout = setTimeout(() => {
-                        swipeIndicator.style.opacity = '0';
-                    }, 5000);
-                    
-                    // Set up event listener for video end
-                    setupVideoEndListener(video.id);
+                    // Then load the video after a short delay
+                    setTimeout(() => {
+                        try {
+                            // For iOS, we need to use playsinline and muted for autoplay to work
+                            videoPlayer.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&mute=0&controls=1`;
+                            
+                            errorMessage.style.display = 'none';
+                            
+                            // Clear any existing timeout
+                            clearTimeout(swipeTimeout);
+                            
+                            // Show swipe indicator immediately and keep it visible
+                            swipeIndicator.style.opacity = '1';
+                            
+                            // Set up event listener for video end
+                            setupVideoEndListener(video.id);
+                            
+                            // Add manual check for video end
+                            setTimeout(addVideoEndCheck, 2000);
+                        } catch (error) {
+                            console.error('Error loading video:', error);
+                            setupVideoEndFallback(); // Use fallback if there's an error
+                        }
+                    }, 300);
                 } else {
                     throw new Error('No suitable videos found. Please try a different interest.');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                errorMessage.textContent = error.message;
+                errorMessage.textContent = error.message || 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
                 videoContainer.style.display = 'none';
                 // Don't hide progress container when there's an error
@@ -1217,16 +1280,244 @@
         // Parse YouTube duration format (PT1H30M15S) to seconds
         function parseDuration(duration) {
             const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-            const hours = (match[1] || '0H').slice(0, -1);
-            const minutes = (match[2] || '0M').slice(0, -1);
-            const seconds = (match[3] || '0S').slice(0, -1);
+            if (!match) return 0; // Handle invalid duration format
+            
+            const hours = match[1] ? match[1].slice(0, -1) : '0';
+            const minutes = match[2] ? match[2].slice(0, -1) : '0';
+            const seconds = match[3] ? match[3].slice(0, -1) : '0';
+            
             return (parseInt(hours) * 3600) + (parseInt(minutes) * 60) + parseInt(seconds);
+        }
+
+        // Function to set up event listener for video end
+        function setupVideoEndListener(videoId) {
+            try {
+                // Create YouTube Player API script if it doesn't exist
+                if (!window.YT) {
+                    const tag = document.createElement('script');
+                    tag.src = "https://www.youtube.com/iframe_api";
+                    const firstScriptTag = document.getElementsByTagName('script')[0];
+                    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                    
+                    window.onYouTubeIframeAPIReady = function() {
+                        createYTPlayer(videoId);
+                    };
+                } else if (window.YT && window.YT.Player) {
+                    createYTPlayer(videoId);
+                } else {
+                    // If YT object exists but Player is not ready
+                    setTimeout(() => {
+                        if (window.YT && window.YT.Player) {
+                            createYTPlayer(videoId);
+                        } else {
+                            setupVideoEndFallback();
+                        }
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error('Error setting up YouTube API:', error);
+                // Fallback for when YouTube API fails
+                setupVideoEndFallback();
+            }
+        }
+
+        // Fallback method to handle video end when YouTube API fails
+        function setupVideoEndFallback() {
+            console.log('Using fallback method for video end detection');
+            // Check video progress every second and compare with dialValue
+            const checkVideoInterval = setInterval(() => {
+                if (elapsedTime >= dialValue * 0.95) { // 95% of the way through
+                    clearInterval(checkVideoInterval);
+                    console.log('Video end detected by fallback method');
+                    
+                    // TikTok-style animation
+                    videoContainer.style.transition = 'transform 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
+                    videoContainer.style.transform = 'translateY(-100%)';
+                    
+                    setTimeout(() => {
+                        videoContainer.style.transition = 'none';
+                        videoContainer.style.transform = 'translateY(0)';
+                        getNextVideo();
+                    }, 400);
+                }
+            }, 1000);
+        }
+
+        // Create YouTube player and set up event listeners
+        function createYTPlayer(videoId) {
+            console.log('Creating YouTube player for video ID:', videoId);
+            
+            if (window.player) {
+                try {
+                    window.player.destroy();
+                } catch (e) {
+                    console.error('Error destroying player:', e);
+                }
+            }
+            
+            try {
+                // Store the iframe element
+                const iframeElement = document.getElementById('videoPlayer');
+                
+                // If the iframe has been replaced with a div by the YouTube API
+                if (iframeElement && iframeElement.tagName !== 'IFRAME') {
+                    iframeElement.id = 'videoPlayer-container';
+                    const newIframe = document.createElement('iframe');
+                    newIframe.id = 'videoPlayer';
+                    newIframe.frameBorder = '0';
+                    newIframe.allowFullscreen = true;
+                    newIframe.allow = 'autoplay; encrypted-media';
+                    newIframe.title = 'YouTube video player';
+                    iframeElement.parentNode.replaceChild(newIframe, iframeElement);
+                }
+                
+                // Define YT.PlayerState if it doesn't exist
+                if (!window.YT) {
+                    window.YT = {};
+                }
+                if (!window.YT.PlayerState) {
+                    window.YT.PlayerState = {
+                        ENDED: 0,
+                        PLAYING: 1,
+                        PAUSED: 2,
+                        BUFFERING: 3,
+                        CUED: 5
+                    };
+                }
+                
+                window.player = new YT.Player('videoPlayer', {
+                    videoId: videoId,
+                    playerVars: {
+                        'autoplay': 1,
+                        'playsinline': 1,
+                        'controls': 1,
+                        'rel': 0,
+                        'fs': 0,
+                        'modestbranding': 1
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange,
+                        'onError': onPlayerError
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating YouTube player:', error);
+                setupVideoEndFallback();
+                
+                // Direct iframe approach as fallback
+                const iframeElement = document.getElementById('videoPlayer');
+                if (iframeElement && iframeElement.tagName === 'IFRAME') {
+                    iframeElement.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&controls=1`;
+                }
+            }
+        }
+        
+        // When player is ready
+        function onPlayerReady(event) {
+            console.log('YouTube player ready');
+            event.target.playVideo();
+        }
+
+        // Handle player errors
+        function onPlayerError(event) {
+            console.error('YouTube player error:', event.data);
+            // Try to get next video on error
+            getNextVideo();
+        }
+
+        // Handle player state changes
+        function onPlayerStateChange(event) {
+            console.log('Player state changed to:', event.data);
+            // When video ends (state = 0), play next video with TikTok animation
+            if (event.data === 0 || (window.YT && event.data === YT.PlayerState.ENDED)) {
+                console.log('Video ended, playing next video');
+                // TikTok-style animation
+                videoContainer.style.transition = 'transform 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
+                videoContainer.style.transform = 'translateY(-100%)';
+                
+                // After animation completes, reset position and get next video
+                setTimeout(() => {
+                    videoContainer.style.transition = 'none';
+                    videoContainer.style.transform = 'translateY(0)';
+                    getNextVideo();
+                }, 400);
+            }
+        }
+
+        // Add a manual check for video end in case the event doesn't fire
+        function addVideoEndCheck() {
+            if (window.player && typeof window.player.getCurrentTime === 'function') {
+                let lastTime = 0;
+                let stuckCounter = 0;
+                
+                const checkInterval = setInterval(() => {
+                    try {
+                        if (!window.player || typeof window.player.getCurrentTime !== 'function') {
+                            clearInterval(checkInterval);
+                            return;
+                        }
+                        
+                        const currentTime = window.player.getCurrentTime();
+                        const duration = window.player.getDuration();
+                        
+                        // If we're near the end of the video
+                        if (duration > 0 && currentTime > 0 && (duration - currentTime < 1.5)) {
+                            console.log('Video near end detected by time check');
+                            clearInterval(checkInterval);
+                            
+                            // TikTok-style animation
+                            videoContainer.style.transition = 'transform 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
+                            videoContainer.style.transform = 'translateY(-100%)';
+                            
+                            setTimeout(() => {
+                                videoContainer.style.transition = 'none';
+                                videoContainer.style.transform = 'translateY(0)';
+                                getNextVideo();
+                            }, 400);
+                        }
+                        
+                        // Check if video is stuck (time not advancing)
+                        if (currentTime === lastTime) {
+                            stuckCounter++;
+                            if (stuckCounter > 5 && currentTime > 0 && duration > 0 && (duration - currentTime < 5)) {
+                                // Video might be stuck near the end
+                                console.log('Video appears stuck near end, advancing to next');
+                                clearInterval(checkInterval);
+                                getNextVideo();
+                            }
+                        } else {
+                            stuckCounter = 0;
+                        }
+                        
+                        lastTime = currentTime;
+                    } catch (e) {
+                        console.error('Error in video end check:', e);
+                        clearInterval(checkInterval);
+                    }
+                }, 1000);
+                
+                // Clear interval when video container is hidden
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.target === videoContainer && 
+                            mutation.attributeName === 'style' && 
+                            videoContainer.style.display === 'none') {
+                            clearInterval(checkInterval);
+                            observer.disconnect();
+                        }
+                    });
+                });
+                
+                observer.observe(videoContainer, { attributes: true });
+            }
         }
 
         // Add click event listener to the submit button
         submitBtn.addEventListener('click', async () => {
             const interest = interestInput.value.trim();
             const errorMessage = document.querySelector('.error-message');
+            const loadingSpinner = document.querySelector('.loading-spinner');
             
             errorMessage.style.display = 'none';
             
@@ -1250,58 +1541,19 @@
                 return;
             }
 
-            currentInterest = interest;
-            fetchVideo(interest, true); // Reset progress when starting a new search
-        });
-
-        // Function to set up event listener for video end
-        function setupVideoEndListener(videoId) {
-            // Create YouTube Player API script if it doesn't exist
-            if (!window.YT) {
-                const tag = document.createElement('script');
-                tag.src = "https://www.youtube.com/iframe_api";
-                const firstScriptTag = document.getElementsByTagName('script')[0];
-                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-                
-                window.onYouTubeIframeAPIReady = function() {
-                    createYTPlayer(videoId);
-                };
-            } else {
-                createYTPlayer(videoId);
-            }
-        }
-
-        // Create YouTube player and set up event listeners
-        function createYTPlayer(videoId) {
-            if (window.player) {
-                window.player.destroy();
-            }
+            // Show loading spinner without disabling button (to maintain width)
+            loadingSpinner.style.display = 'inline-block';
             
-            window.player = new YT.Player('videoPlayer', {
-                videoId: videoId,
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
-            });
-        }
-
-        // Handle player state changes
-        function onPlayerStateChange(event) {
-            // When video ends (state = 0), play next video
-            if (event.data === 0) {
-                // Add a sliding up animation
-                const videoContainer = document.querySelector('.video-container');
-                videoContainer.style.transition = 'transform 0.5s ease-out';
-                videoContainer.style.transform = 'translateY(-100%)';
-                
-                // After animation completes, reset position and get next video
-                setTimeout(() => {
-                    videoContainer.style.transition = 'none';
-                    videoContainer.style.transform = 'translateY(0)';
-                    getNextVideo();
-                }, 500);
+            try {
+                currentInterest = interest;
+                await fetchVideo(interest, true); // Reset progress when starting a new search
+            } catch (error) {
+                console.error("Error fetching video:", error);
+                errorMessage.textContent = error.message || "An error occurred while fetching the video";
+                errorMessage.style.display = 'block';
+                loadingSpinner.style.display = 'none';
             }
-        }
+        });
     </script>
 </body>
 </html>

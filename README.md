@@ -37,6 +37,27 @@ npm run dev
 - `YOUTUBE_API_KEY`: Your YouTube Data API v3 key
 - `PORT` (optional): Server port number (default: 3000)
 
+## API Key Options
+
+You have two options for providing the YouTube API key:
+
+### Option 1: Server-side (Recommended for production/GitHub)
+1. Add your YouTube API key to the `.env` file:
+```
+YOUTUBE_API_KEY=your_youtube_api_key_here
+```
+2. Start the server with `npm start`
+3. The application will fetch the API key from the server
+
+### Option 2: Client-side (For local development only)
+If you're only using the app locally and not pushing to GitHub:
+1. Open `index.html` in a code editor
+2. Find the `DEFAULT_YOUTUBE_API_KEY` constant
+3. Replace the placeholder with your actual YouTube API key
+4. Save the file
+
+**IMPORTANT: Never commit the actual API key to GitHub if using Option 2.**
+
 ## Features
 
 - Smart video recommendations based on your interests
@@ -47,6 +68,7 @@ npm run dev
 
 ## Security Notes
 
-- Never commit the `.env` file
-- Always use environment variables for API keys
-- The `.env.example` file shows required variables without actual values 
+- Never commit the `.env` file or hardcoded API keys to GitHub
+- Always use environment variables for API keys in production
+- The `.env.example` file shows required variables without actual values
+- If you accidentally commit an API key, invalidate it immediately and generate a new one 

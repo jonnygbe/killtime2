@@ -354,33 +354,11 @@
         }
 
         .swipe-indicator {
-            position: absolute;
-            bottom: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: var(--primary-color);
-            background: rgba(0,0,0,0.7);
-            padding: 10px 20px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: pulse 2s infinite;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            text-align: center;
-            pointer-events: none;
-            z-index: 2002;
+            display: none; /* Hide the swipe indicator completely */
         }
 
         .swipe-indicator svg {
             margin-left: 8px;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.7; }
-            50% { opacity: 1; }
-            100% { opacity: 0.7; }
         }
 
         .next-btn {
@@ -411,7 +389,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 2001;
+            z-index: 2010; /* Increased z-index to ensure it's above other elements */
+            cursor: pointer; /* Add cursor pointer to indicate it's clickable */
         }
 
         .api-key-modal {
@@ -519,12 +498,6 @@
     <div class="video-container">
         <div class="close-btn" aria-label="Close video">✕</div>
         <iframe id="videoPlayer" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" title="YouTube video player"></iframe>
-        <div class="swipe-indicator">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M12 5L12 19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M19 12L12 5L5 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </div>
         <div class="next-btn" aria-label="Next video">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M5 12H19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -537,11 +510,9 @@
         <div class="api-key-form">
             <h2>API Configuration</h2>
             <form id="api-key-form">
-                <label for="openaiKey">OpenAI API Key</label>
-                <input type="password" id="openaiKey" name="openaiKey" class="api-key-input" placeholder="Enter your OpenAI API Key">
                 <label for="youtubeKey">YouTube API Key</label>
                 <input type="password" id="youtubeKey" name="youtubeKey" class="api-key-input" placeholder="Enter your YouTube API Key">
-                <button type="button" id="save-keys-btn" class="submit-btn">Save Keys</button>
+                <button type="button" id="save-keys-btn" class="submit-btn">Save Key</button>
             </form>
         </div>
     </div>
@@ -573,6 +544,48 @@
         let touchEndY = 0;
         let swipeTimeout;
         let elapsedTime = 0; // Track elapsed time globally
+        
+        // API key placeholder - will be loaded from server or environment
+        // DO NOT replace this with your actual API key if pushing to GitHub
+        const DEFAULT_YOUTUBE_API_KEY = "REPLACE_WITH_YOUR_YOUTUBE_API_KEY";
+        
+        // Function to fetch API key from server (if available)
+        async function fetchApiKey() {
+            try {
+                const response = await fetch('/api/youtube-key');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.key) {
+                        setLocalStorageWithFallback('youtubeKey', data.key);
+                        return true;
+                    }
+                }
+                return false;
+            } catch (error) {
+                console.error('Error fetching API key:', error);
+                return false;
+            }
+        }
+        
+        // Try to fetch API key on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Only try to fetch from server if we don't have a valid key already
+            const storedKey = getStoredValue('youtubeKey', '');
+            if (!storedKey || storedKey === "REPLACE_WITH_YOUR_YOUTUBE_API_KEY") {
+                await fetchApiKey();
+            }
+            
+            // Initialize dial
+            initializeDial();
+            
+            // Add event listeners for window resize and orientation change
+            window.addEventListener('resize', function() {
+                createDialMarkers();
+                // Update viewport height on resize
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+            });
+        });
 
         // Function to create dial markers
         function createDialMarkers() {
@@ -581,46 +594,39 @@
             
             const dialSize = dial.offsetWidth;
             const center = dialSize / 2;
-            const borderWidth = 2; // Border width of the dial
+            const borderWidth = 2;
             
-            // Create markers for 5, 10, and 15 minutes (skip 0)
+            // Create markers for 5, 10, and 15 minutes
             for (let i = 5; i <= 15; i += 5) {
                 const minutes = i;
-                const angle = (minutes / 15) * 360 - 90; // -90 to start at top
+                const angle = (minutes / 15) * 360 - 90;
                 const radians = (angle * Math.PI) / 180;
                 
-                // Create marker (dash)
+                // Create marker line
                 const marker = document.createElement('div');
                 marker.className = 'dial-marker';
                 
-                // Position marker at the edge of the dial
                 const markerDistance = center - borderWidth;
                 const markerX = center + Math.cos(radians) * markerDistance;
                 const markerY = center + Math.sin(radians) * markerDistance;
                 
-                marker.style.position = 'absolute';
-                marker.style.width = '2px';
-                marker.style.height = '12px';
                 marker.style.left = `${markerX}px`;
                 marker.style.top = `${markerY}px`;
                 marker.style.transform = `rotate(${angle + 90}deg)`;
                 
-                // Create label (number)
+                // Create label
                 const label = document.createElement('div');
                 label.className = 'dial-marker-label';
                 label.textContent = minutes;
                 
-                // Position label outside the dial
-                const labelDistance = center * 1.15; // Position outside the dial
+                const labelDistance = center * 1.15;
                 const labelX = center + Math.cos(radians) * labelDistance;
                 const labelY = center + Math.sin(radians) * labelDistance;
                 
-                label.style.position = 'absolute';
                 label.style.left = `${labelX}px`;
                 label.style.top = `${labelY}px`;
                 label.style.transform = 'translate(-50%, -50%)';
                 
-                // Make 15 slightly larger
                 if (minutes === 15) {
                     label.style.fontSize = '18px';
                     label.style.fontWeight = '700';
@@ -629,34 +635,6 @@
                 dialMarkers.appendChild(marker);
                 dialMarkers.appendChild(label);
             }
-            
-            // Add dot indicators at bottom positions (7.5 and 22.5 minutes)
-            const indicatorAngles = [135, 225]; // Bottom positions at 4:30 and 7:30
-            
-            indicatorAngles.forEach(angle => {
-                const radians = (angle - 90) * (Math.PI / 180);
-                
-                // Create indicator
-                const indicator = document.createElement('div');
-                indicator.className = 'dial-marker';
-                
-                // Position indicator at the edge of the dial
-                const indicatorDistance = center - borderWidth;
-                const indicatorX = center + Math.cos(radians) * indicatorDistance;
-                const indicatorY = center + Math.sin(radians) * indicatorDistance;
-                
-                indicator.style.position = 'absolute';
-                indicator.style.width = '6px'; // Slightly larger for better visibility
-                indicator.style.height = '6px'; // Slightly larger for better visibility
-                indicator.style.borderRadius = '50%'; // Make it a dot
-                indicator.style.left = `${indicatorX}px`;
-                indicator.style.top = `${indicatorY}px`;
-                indicator.style.transform = 'translate(-50%, -50%)'; // Center the dot
-                indicator.style.background = '#FFFFFF'; // White color
-                indicator.style.boxShadow = '0 0 8px rgba(255, 255, 255, 0.8)'; // White glow
-                
-                dialMarkers.appendChild(indicator);
-            });
         }
 
         // Function to update the dial display (time text)
@@ -700,22 +678,6 @@
             updateDialFill();
             createDialMarkers();
         }
-
-        // Initialize immediately
-        initializeDial();
-
-        // Also initialize on DOMContentLoaded for safety
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeDial();
-            
-            // Add event listeners for window resize and orientation change
-            window.addEventListener('resize', function() {
-                createDialMarkers();
-                // Update viewport height on resize
-                const vh = window.innerHeight * 0.01;
-                document.documentElement.style.setProperty('--vh', `${vh}px`);
-            });
-        });
 
         // Handle dial rotation for mouse events
         dial.addEventListener('mousedown', function(e) {
@@ -841,17 +803,22 @@
             }
         }
 
-        // Check for API keys - only show modal if YouTube key is not set
-        if (!getStoredValue('youtubeKey', '') || getStoredValue('youtubeKey', '') === "YOUR_YOUTUBE_API_KEY") {
+        // Check for API keys - only show modal if YouTube key is not set and not using default key
+        if ((!getStoredValue('youtubeKey', '') || getStoredValue('youtubeKey', '') === "REPLACE_WITH_YOUR_YOUTUBE_API_KEY") && 
+            DEFAULT_YOUTUBE_API_KEY === "REPLACE_WITH_YOUR_YOUTUBE_API_KEY") {
             document.querySelector('.api-key-modal').style.display = 'flex';
+        } else {
+            // If we have a default key, store it
+            if (DEFAULT_YOUTUBE_API_KEY !== "REPLACE_WITH_YOUR_YOUTUBE_API_KEY" && 
+                (!getStoredValue('youtubeKey', '') || getStoredValue('youtubeKey', '') === "REPLACE_WITH_YOUR_YOUTUBE_API_KEY")) {
+                setLocalStorageWithFallback('youtubeKey', DEFAULT_YOUTUBE_API_KEY);
+            }
         }
 
         function saveApiKeys() {
-            const openaiKey = document.getElementById('openaiKey').value;
             const youtubeKey = document.getElementById('youtubeKey').value;
             
             if (youtubeKey) {
-                setLocalStorageWithFallback('openaiKey', openaiKey);
                 setLocalStorageWithFallback('youtubeKey', youtubeKey);
                 document.querySelector('.api-key-modal').style.display = 'none';
             } else {
@@ -871,24 +838,16 @@
         videoContainer.addEventListener('touchstart', function(e) {
             touchStartY = e.changedTouches[0].screenY;
             swipeStartTime = Date.now();
-            
-            // Reset any ongoing transitions
-            videoContainer.style.transition = 'none';
-            videoContainer.style.transform = 'translateY(0)';
+            e.preventDefault();
         }, { passive: false });
 
         videoContainer.addEventListener('touchmove', function(e) {
-            // Get current touch position
-            const currentY = e.changedTouches[0].screenY;
-            // Calculate distance moved
-            const deltaY = touchStartY - currentY;
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            const deltaY = touchStartY - touch.screenY;
             
-            // If swiping up, show visual feedback
             if (deltaY > 0) {
-                e.preventDefault();
-                
-                // Visual feedback during swipe - TikTok style
-                const translateY = Math.min(deltaY * 0.5, window.innerHeight * 0.3); // More resistance than TikTok
+                const translateY = Math.min(deltaY * 0.5, window.innerHeight * 0.3);
                 videoContainer.style.transform = `translateY(-${translateY}px)`;
             }
         }, { passive: false });
@@ -930,7 +889,7 @@
         }, { passive: false });
 
         // Close video button
-        closeBtn.addEventListener('click', () => {
+        closeBtn.addEventListener('click', function() {
             videoContainer.style.display = 'none';
             progressContainer.style.display = 'none';
             clearInterval(progressInterval);
@@ -941,6 +900,15 @@
             const progressTime = document.querySelector('.progress-time');
             if (progressTime) {
                 progressTime.style.opacity = '1';
+            }
+            
+            // If there's a YouTube player instance, destroy it
+            if (window.player && typeof window.player.destroy === 'function') {
+                try {
+                    window.player.destroy();
+                } catch (e) {
+                    console.error('Error destroying player:', e);
+                }
             }
         });
 
@@ -1093,18 +1061,15 @@
         async function fetchVideo(interest, resetProgress = true) {
             const errorMessage = document.querySelector('.error-message');
             const loadingSpinner = document.querySelector('.loading-spinner');
-            const swipeIndicator = document.querySelector('.swipe-indicator');
             
             try {
                 submitBtn.disabled = true;
                 loadingSpinner.style.display = 'inline-block';
                 
-                let openaiKey, youtubeKey;
-                openaiKey = getStoredValue('openaiKey', '');
-                youtubeKey = getStoredValue('youtubeKey', '');
+                let youtubeKey = getStoredValue('youtubeKey', DEFAULT_YOUTUBE_API_KEY);
                 
-                if (!youtubeKey) {
-                    throw new Error('YouTube API key not found. Please configure your API keys.');
+                if (!youtubeKey || youtubeKey === "REPLACE_WITH_YOUR_YOUTUBE_API_KEY") {
+                    throw new Error('YouTube API key not found. Please configure your API key.');
                 }
                 
                 // STANDALONE MODE - No server required
@@ -1135,9 +1100,6 @@
                             
                             // Clear any existing timeout
                             clearTimeout(swipeTimeout);
-                            
-                            // Show swipe indicator immediately and keep it visible
-                            swipeIndicator.style.opacity = '1';
                             
                             // Set up event listener for video end
                             setupVideoEndListener(video.id);
@@ -1432,16 +1394,11 @@
             // When video ends (state = 0), play next video with TikTok animation
             if (event.data === 0 || (window.YT && event.data === YT.PlayerState.ENDED)) {
                 console.log('Video ended, playing next video');
-                // TikTok-style animation
-                videoContainer.style.transition = 'transform 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
-                videoContainer.style.transform = 'translateY(-100%)';
                 
-                // After animation completes, reset position and get next video
+                // Small delay before getting next video to ensure clean transition
                 setTimeout(() => {
-                    videoContainer.style.transition = 'none';
-                    videoContainer.style.transform = 'translateY(0)';
                     getNextVideo();
-                }, 400);
+                }, 300);
             }
         }
 
@@ -1461,20 +1418,11 @@
                         const currentTime = window.player.getCurrentTime();
                         const duration = window.player.getDuration();
                         
-                        // If we're near the end of the video
+                        // If we're near the end of the video (within 1.5 seconds)
                         if (duration > 0 && currentTime > 0 && (duration - currentTime < 1.5)) {
                             console.log('Video near end detected by time check');
                             clearInterval(checkInterval);
-                            
-                            // TikTok-style animation
-                            videoContainer.style.transition = 'transform 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
-                            videoContainer.style.transform = 'translateY(-100%)';
-                            
-                            setTimeout(() => {
-                                videoContainer.style.transition = 'none';
-                                videoContainer.style.transform = 'translateY(0)';
-                                getNextVideo();
-                            }, 400);
+                            getNextVideo();
                         }
                         
                         // Check if video is stuck (time not advancing)
@@ -1534,9 +1482,9 @@
                 return;
             }
 
-            const youtubeKey = getStoredValue('youtubeKey', '');
+            const youtubeKey = getStoredValue('youtubeKey', DEFAULT_YOUTUBE_API_KEY);
 
-            if (!youtubeKey || youtubeKey === "YOUR_YOUTUBE_API_KEY") {
+            if (!youtubeKey || youtubeKey === "REPLACE_WITH_YOUR_YOUTUBE_API_KEY") {
                 document.querySelector('.api-key-modal').style.display = 'flex';
                 return;
             }
@@ -1554,6 +1502,29 @@
                 loadingSpinner.style.display = 'none';
             }
         });
+
+        // Add these iOS compatibility improvements right after the videoContainer event listeners
+        videoPlayer.setAttribute('playsinline', '');
+        videoPlayer.setAttribute('webkit-playsinline', '');
+        videoPlayer.setAttribute('muted', 'muted');
+
+        // Update the video container touch handling
+        videoContainer.addEventListener('touchstart', function(e) {
+            touchStartY = e.changedTouches[0].screenY;
+            swipeStartTime = Date.now();
+            e.preventDefault();
+        }, { passive: false });
+
+        videoContainer.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            const deltaY = touchStartY - touch.screenY;
+            
+            if (deltaY > 0) {
+                const translateY = Math.min(deltaY * 0.5, window.innerHeight * 0.3);
+                videoContainer.style.transform = `translateY(-${translateY}px)`;
+            }
+        }, { passive: false });
     </script>
 </body>
 </html>

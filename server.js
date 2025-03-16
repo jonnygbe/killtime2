@@ -18,11 +18,21 @@ const youtube = google.youtube({
 });
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'killtime.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get('/test', (req, res) => {
     res.sendFile(path.join(__dirname, 'test.html'));
+});
+
+// Endpoint to provide YouTube API key to client
+app.get('/api/youtube-key', (req, res) => {
+    // Only provide the key if it exists in environment variables
+    if (process.env.YOUTUBE_API_KEY) {
+        res.json({ key: process.env.YOUTUBE_API_KEY });
+    } else {
+        res.status(404).json({ error: 'API key not configured on server' });
+    }
 });
 
 app.post('/search', async (req, res) => {

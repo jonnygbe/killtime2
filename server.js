@@ -11,6 +11,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+// Cache for YouTube API responses to reduce quota usage
+const apiCache = {
+    searches: {},
+    videoDetails: {}
+};
+
 // YouTube API setup
 const youtube = google.youtube({
     version: 'v3',
@@ -35,9 +41,58 @@ app.get('/api/youtube-key', (req, res) => {
     }
 });
 
-app.post('/search', async (req, res) => {
+// Endpoint to provide OpenAI API key to client
+app.get('/api/openai-key', (req, res) => {
+    // Only provide the key if it exists in environment variables
+    if (process.env.OPENAI_API_KEY) {
+        res.json({ key: process.env.OPENAI_API_KEY });
+    } else {
+        res.status(404).json({ error: 'OpenAI API key not configured on server' });
+    }
+});
+
+// Rate limiting variables
+const requestCounts = {};
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
+const MAX_REQUESTS_PER_HOUR = 50; // Limit to 50 requests per hour
+
+// Middleware for rate limiting
+function rateLimiter(req, res, next) {
+    const ip = req.ip;
+    const now = Date.now();
+    
+    // Initialize or clean up old entries
+    if (!requestCounts[ip] || now - requestCounts[ip].timestamp > RATE_LIMIT_WINDOW) {
+        requestCounts[ip] = {
+            count: 0,
+            timestamp: now
+        };
+    }
+    
+    // Increment count
+    requestCounts[ip].count++;
+    
+    // Check if over limit
+    if (requestCounts[ip].count > MAX_REQUESTS_PER_HOUR) {
+        return res.status(429).json({ 
+            error: 'Rate limit exceeded. Please try again later.',
+            message: 'To prevent API quota exhaustion, we limit requests to 50 per hour.'
+        });
+    }
+    
+    next();
+}
+
+app.post('/search', rateLimiter, async (req, res) => {
     try {
         const { query, duration } = req.body;
+        
+        // Check cache first
+        const cacheKey = `${query}-${duration}`;
+        if (apiCache.searches[cacheKey]) {
+            console.log('Cache hit for search:', cacheKey);
+            return res.json(apiCache.searches[cacheKey]);
+        }
         
         // Search for videos
         const searchResponse = await youtube.search.list({
@@ -56,13 +111,39 @@ app.post('/search', async (req, res) => {
 
         // Get video details
         const videoIds = searchResponse.data.items.map(item => item.id.videoId);
-        const videosResponse = await youtube.videos.list({
-            part: 'contentDetails,statistics,status,snippet',
-            id: videoIds.join(',')
+        
+        // Check cache for video details
+        let videosToFetch = [];
+        let cachedVideos = [];
+        
+        videoIds.forEach(id => {
+            if (apiCache.videoDetails[id]) {
+                cachedVideos.push(apiCache.videoDetails[id]);
+            } else {
+                videosToFetch.push(id);
+            }
         });
+        
+        let fetchedVideos = [];
+        if (videosToFetch.length > 0) {
+            const videosResponse = await youtube.videos.list({
+                part: 'contentDetails,statistics,status,snippet',
+                id: videosToFetch.join(',')
+            });
+            
+            // Cache the fetched videos
+            videosResponse.data.items.forEach(video => {
+                apiCache.videoDetails[video.id] = video;
+            });
+            
+            fetchedVideos = videosResponse.data.items;
+        }
+        
+        // Combine cached and fetched videos
+        const allVideos = [...cachedVideos, ...fetchedVideos];
 
         // Filter and sort videos
-        const videos = videosResponse.data.items
+        const videos = allVideos
             .filter(video => {
                 if (!video.status.embeddable) return false;
                 
@@ -90,7 +171,10 @@ app.post('/search', async (req, res) => {
         videos.sort((a, b) => b.viewCount - a.viewCount);
         const topVideos = videos.slice(0, Math.min(5, videos.length));
         const selectedVideo = topVideos[Math.floor(Math.random() * topVideos.length)];
-
+        
+        // Cache the result
+        apiCache.searches[cacheKey] = selectedVideo;
+        
         res.json(selectedVideo);
     } catch (error) {
         console.error('Search error:', error);
@@ -105,6 +189,13 @@ function parseDuration(duration) {
     const seconds = (match[3] || '0S').slice(0, -1);
     return (parseInt(hours) * 3600) + (parseInt(minutes) * 60) + parseInt(seconds);
 }
+
+// Clear cache periodically to prevent memory issues
+setInterval(() => {
+    console.log('Clearing API cache');
+    apiCache.searches = {};
+    // Keep video details cache as it's more valuable
+}, 24 * 60 * 60 * 1000); // Clear search cache once a day
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
